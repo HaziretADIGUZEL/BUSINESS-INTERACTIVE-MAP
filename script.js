@@ -1,3 +1,16 @@
+// Firebase yapılandırma (kendi projenin bilgileri ile doldur!)
+const firebaseConfig = {
+    apiKey: "AIzaSyDBG7zQ-6bMHhAC0jwpJIlnjpLNj6L_NaI",
+    authDomain: "marker-and-class-database.firebaseapp.com",
+    databaseURL: "https://marker-and-class-database-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "marker-and-class-database",
+    storageBucket: "marker-and-class-database.firebasestorage.app",
+    messagingSenderId: "672136991301",
+    appId: "1:672136991301:web:0e392da0b607251afdc92c"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
 async function hashPassword(password) {
     const encoder = new TextEncoder();
     const data = encoder.encode(password);
@@ -9,9 +22,9 @@ function initApp() {
     console.log('initApp başlatıldı');
     console.log('Leaflet var mı?', typeof L);
 
-        var hideAllFilters = document.getElementById('hide-all-filters');
+    var hideAllFilters = document.getElementById('hide-all-filters');
     if (hideAllFilters) {
-        hideAllFilters.checked = true; // Sayfa açılışında işaretli başlat
+        hideAllFilters.checked = true;
     }
 
     // Leaflet kontrolü
@@ -32,8 +45,9 @@ function initApp() {
     console.log('#map div bulundu, boyutlar:', mapDiv.style.width, mapDiv.style.height);
 
     // Harita oluşturma
+    var map;
     try {
-        var map = L.map('map', {
+        map = L.map('map', {
             crs: L.CRS.Simple,
             minZoom: -3,
             maxZoom: 3,
@@ -77,19 +91,44 @@ function initApp() {
         console.error('map.setView hatası:', err);
     }
 
-    // Marker'lar (localStorage'dan yükle)
-    var markersData = JSON.parse(localStorage.getItem('markers')) || [];
+    // Firebase ile marker ve sınıf verileri
+    var markersData = [];
+    var classesData = [];
     var markerLayers = [];
     var selectedMarkerIndex = -1;
     var adminMode = false;
     var highlightedMarkers = [];
-    
-    // Sınıflar (localStorage'dan yükle)
-    var classesData = JSON.parse(localStorage.getItem('classes')) || [];
-    
     var activeFilters = new Set();
     var inversionActive = false;
-    
+
+    // Firebase'den marker ve sınıfları yükle
+    function loadMarkersFromDB() {
+        db.ref('markers').once('value').then(snapshot => {
+            markersData = snapshot.val() || [];
+            loadMarkers();
+        });
+    }
+    function saveMarkersToDB() {
+        db.ref('markers').set(markersData);
+    }
+    function loadClassesFromDB() {
+        db.ref('classes').once('value').then(snapshot => {
+            classesData = snapshot.val() || [];
+            loadClassList();
+        });
+    }
+    function saveClassesToDB() {
+        db.ref('classes').set(classesData);
+    }
+
+    // Marker ve sınıf işlemlerinde localStorage yerine Firebase fonksiyonlarını kullan
+    function saveMarkers() { saveMarkersToDB(); }
+    function saveClasses() { saveClassesToDB(); }
+
+    // Sayfa açılışında verileri Firebase'den yükle
+    loadMarkersFromDB();
+    loadClassesFromDB();
+
     function loadMarkers() {
         markerLayers.forEach(function(layer) {
             if (map.hasLayer(layer.marker)) {
@@ -171,16 +210,6 @@ function initApp() {
             ${adminEditButton}
         `;
     }
-
-    function saveMarkers() {
-        localStorage.setItem('markers', JSON.stringify(markersData));
-    }
-    
-    function saveClasses() {
-        localStorage.setItem('classes', JSON.stringify(classesData));
-    }
-
-    loadMarkers();
 
     // Arama fonksiyonu
     var searchInput = document.getElementById('search-input');
