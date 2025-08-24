@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ÇINAR İTFAİYE</title>
+    <link rel="icon" type="image/png" href="logo.png">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="map"></div>
+
+    <div class="search-container">
+        <input type="text" id="search-input" placeholder="Ara">
+        <button id="search-button">Ara</button>
+        <ul id="search-suggestions" class="suggestions-list" style="display: none;"></ul>
+    </div>
+    
+    <div class="filter-container">
+        <button id="filter-toggle">Sınıflar Filtrele</button>
+        <div id="filter-dropdown" class="filter-dropdown" style="display: none;">
+            <label><input type="checkbox" id="hide-all-filters"> Hepsini Gizle</label>
+            <div id="filter-options"></div>
+        </div>
+        <div class="inversion-container">
+            <input type="checkbox" id="inversion-toggle">
+            <label for="inversion-toggle">Tersine Çevir</label>
+        </div>
+    </div>
+
+    <div class="admin-buttons">
+        <button id="admin-toggle">Admin Modu</button>
+        <button id="show-admin-panel" style="display: none;">Marker Listesi</button>
+        <button id="manage-classes-btn" style="display: none;">Sınıf Yönetimi</button>
+    </div>
+
+    <div id="login-modal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Admin Girişi</h2>
+            <form id="login-form">
+                <label>Kullanıcı Adı:</label>
+                <input type="text" id="username-input">
+                <label>Şifre:</label>
+                <input type="password" id="password-input">
+                <button type="submit">Giriş Yap</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="admin-modal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Admin Paneli</h2>
+            <button id="add-new-marker">Yeni Marker Ekle</button>
+            <h3>Marker Listesi</h3>
+            <ul id="marker-list"></ul>
+        </div>
+    </div>
+
+    <div id="class-modal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Sınıf Yönetimi</h2>
+            <form id="class-form">
+                <label>Yeni Sınıf Adı:</label>
+                <input type="text" id="new-class-name">
+                <button type="submit">Sınıf Ekle</button>
+            </form>
+            <h3>Mevcut Sınıflar</h3>
+            <ul id="class-list"></ul>
+        </div>
+    </div>
+
+    <div id="edit-modal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Marker Düzenle</h2>
+            <form id="marker-form">
+                <label>Başlık:</label>
+                <input type="text" id="title-input">
+                <label>Açıklama:</label>
+                <textarea id="desc-input"></textarea>
+                <label>Sınıf:</label>
+                <select id="class-select"></select>
+                <label>Görsel URL (boş bırakılabilir):</label>
+                <input type="text" id="image-url-input">
+                <button type="button" id="add-image-url">URL Ekle</button>
+                <label>Yerel Görsel Yükle:</label>
+                <input type="file" id="image-file-input" accept="image/*" multiple>
+                <div id="image-list"></div>
+                <label>Konum (otomatik seçilecek):</label>
+                <input type="text" id="latlng-input" readonly>
+                <button type="submit">Kaydet</button>
+                <button type="button" id="delete-marker">Sil</button>
+            </form>
+            <p>Konum seçmek için haritaya tıklayın (admin modunda).</p>
+        </div>
+    </div>
+
+    <div id="image-viewer-modal" class="modal">
+        <div class="image-viewer-content">
+            <span class="image-viewer-close">&times;</span>
+            <div id="image-viewer-map"></div>
+            <button class="nav-button prev-button">&lt;</button>
+            <button class="nav-button next-button">&gt;</button>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
