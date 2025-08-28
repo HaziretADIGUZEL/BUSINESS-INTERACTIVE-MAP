@@ -3,33 +3,29 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs').promises;
 const cors = require('cors');
-const bcrypt = require('bcryptjs');
 
 const app = express();
 const upload = multer({ dest: 'uploads/' });
 
-// Middleware'ler
-app.use(cors());
-app.use(express.static(path.join(__dirname, 'public')));
-app.use(express.json()); // JSON body'leri parse etmek için
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use(cors()); // CORS desteği
+app.use(express.json()); // JSON body parsing
+app.use(express.static('.')); // Statik dosyaları sun
+app.use('/uploads', express.static('uploads')); // Görseller için
 
-// KÖK DİZİNDE YENİ BİR 'data' KLASÖRÜ OLUŞTURUN
-// admins.json ve diğer hassas dosyaları buraya taşıyın.
-const ADMINS_FILE = path.join(__dirname, 'data', 'admins.json');
-const MARKERS_FILE = path.join(__dirname, 'data', 'markers.json'); // Yeni
-const CLASSES_FILE = path.join(__dirname, 'data', 'classes.json'); // Yeni
+// Mock admin data (in a real app, use a database)
+const admins = [
+    {
+        username: 'admin',
+        password: '8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918' // Hashed "admin" password
+    }
+];
 
-// Oturum yönetimi için basit bir değişken (Gelişmiş projelerde JWT veya oturum kütüphaneleri kullanılır)
-let authenticatedAdmin = null;
+// Mock data storage (replace with a database in production)
+let markers = [];
+let classes = [];
 
 // Görsel yükleme endpoint'i
-app.post('/api/upload', upload.single('image'), async (req, res) => {
-    // Admin kontrolü eklenmeli
-    if (!authenticatedAdmin) {
-        return res.status(401).json({ error: 'Yetkilendirme Hatası: Admin girişi yapılmamış.' });
-    }
-    
+app.post('/upload', upload.single('image'), async (req, res) => {
     try {
         const file = req.file;
         if (!file) {
@@ -45,22 +41,16 @@ app.post('/api/upload', upload.single('image'), async (req, res) => {
     }
 });
 
-// LOGIN ENDPOINT'İ
+// Login endpoint
 app.post('/api/login', async (req, res) => {
     const { username, password } = req.body;
     try {
-        const adminsData = await fs.readFile(ADMINS_FILE, 'utf8');
-        const admins = JSON.parse(adminsData);
-        
-        const admin = admins.find(a => a.username === username);
-
-        if (admin && bcrypt.compareSync(password, admin.password)) {
-            // Şifre doğru, admin oturumunu başlat
-            authenticatedAdmin = username;
-            res.json({ success: true, message: 'Giriş başarılı.' });
+        const hashedPassword = await hashPassword(password); // Assume hashPassword is available server-side
+        const admin = admins.find(a => a.username === username && a.password === hashedPassword);
+        if (admin) {
+            res.json({ success: true });
         } else {
-            // Hatalı kullanıcı adı veya şifre
-            res.status(401).json({ success: false, message: 'Hatalı kullanıcı adı veya şifre.' });
+            res.json({ success: false, message: 'Kullanıcı adı veya şifre yanlış!' });
         }
     } catch (error) {
         console.error('Login hatası:', error);
@@ -68,153 +58,72 @@ app.post('/api/login', async (req, res) => {
     }
 });
 
-// LOGOUT ENDPOINT'İ
+// Logout endpoint (placeholder, as sessions are not implemented)
 app.post('/api/logout', (req, res) => {
-    authenticatedAdmin = null;
-    res.json({ success: true, message: 'Çıkış başarılı.' });
+    res.json({ success: true });
 });
 
-// MARKER VE SINIFLARI YÖNETEN ENDPOINTLER
-// Not: Bu endpointler daha sonra marker ve sınıf verilerini bir veritabanında (örneğin MongoDB) tutacak şekilde güncellenmelidir.
-// Şimdilik dosya sisteminde tutulacaktır.
-
-// Marker'ları okuma (frontend için)
-app.get('/api/markers', async (req, res) => {
-    try {
-        const data = await fs.readFile(MARKERS_FILE, 'utf8');
-        res.json(JSON.parse(data));
-    } catch (error) {
-        // Dosya yoksa boş array döndür
-        if (error.code === 'ENOENT') {
-            return res.json([]);
-        }
-        console.error('Marker okuma hatası:', error);
-        res.status(500).json({ error: 'Markerlar yüklenirken bir hata oluştu.' });
-    }
+// Markers endpoints
+app.get('/api/markers', (req, res) => {
+    res.json(markers);
 });
 
-// Marker ekleme veya güncelleme (admin için)
 app.post('/api/markers', async (req, res) => {
-    if (!authenticatedAdmin) {
-        return res.status(401).json({ error: 'Yetkilendirme Hatası' });
-    }
-
     try {
-        const newMarker = req.body;
-        const markersData = await fs.readFile(MARKERS_FILE, 'utf8').catch(() => '[]');
-        const markers = JSON.parse(markersData);
-        
-        // ID varsa güncelle, yoksa yeni ekle
-        const existingIndex = markers.findIndex(m => m.id === newMarker.id);
-        if (existingIndex !== -1) {
-            markers[existingIndex] = newMarker;
-        } else {
-            newMarker.id = Date.now().toString(); // Basit ID oluşturma
-            markers.push(newMarker);
-        }
-
-        await fs.writeFile(MARKERS_FILE, JSON.stringify(markers, null, 2));
-        res.json({ success: true, marker: newMarker });
+        const markerData = req.body;
+        markerData.id = markers.length + 1; // Simple ID generation
+        markers.push(markerData);
+        res.json({ success: true, marker: markerData });
     } catch (error) {
         console.error('Marker kaydetme hatası:', error);
-        res.status(500).json({ error: 'Marker kaydedilirken bir hata oluştu.' });
+        res.status(500).json({ success: false, error: 'Marker kaydedilemedi.' });
     }
 });
 
-// Marker silme (admin için)
-app.delete('/api/markers/:id', async (req, res) => {
-    if (!authenticatedAdmin) {
-        return res.status(401).json({ error: 'Yetkilendirme Hatası' });
-    }
-
-    try {
-        const markerId = req.params.id;
-        const markersData = await fs.readFile(MARKERS_FILE, 'utf8');
-        let markers = JSON.parse(markersData);
-        const initialLength = markers.length;
-        markers = markers.filter(m => m.id !== markerId);
-        
-        if (markers.length === initialLength) {
-            return res.status(404).json({ error: 'Marker bulunamadı.' });
-        }
-
-        await fs.writeFile(MARKERS_FILE, JSON.stringify(markers, null, 2));
-        res.json({ success: true, message: 'Marker silindi.' });
-    } catch (error) {
-        console.error('Marker silme hatası:', error);
-        res.status(500).json({ error: 'Marker silinirken bir hata oluştu.' });
+app.delete('/api/markers/:id', (req, res) => {
+    const markerId = parseInt(req.params.id);
+    const index = markers.findIndex(m => m.id === markerId);
+    if (index !== -1) {
+        markers.splice(index, 1);
+        res.json({ success: true });
+    } else {
+        res.status(404).json({ success: false, error: 'Marker bulunamadı.' });
     }
 });
 
+// Classes endpoints
+app.get('/api/classes', (req, res) => {
+    res.json(classes);
+});
 
-// Sınıfları okuma
-app.get('/api/classes', async (req, res) => {
-    try {
-        const data = await fs.readFile(CLASSES_FILE, 'utf8');
-        res.json(JSON.parse(data));
-    } catch (error) {
-        if (error.code === 'ENOENT') {
-            return res.json([]);
-        }
-        console.error('Sınıf okuma hatası:', error);
-        res.status(500).json({ error: 'Sınıflar yüklenirken bir hata oluştu.' });
+app.post('/api/classes', (req, res) => {
+    const { name } = req.body;
+    if (name && !classes.includes(name)) {
+        classes.push(name);
+        res.json({ success: true });
+    } else {
+        res.status(400).json({ success: false, error: 'Geçersiz veya mevcut sınıf adı.' });
     }
 });
 
-
-// Sınıf ekleme veya güncelleme
-app.post('/api/classes', async (req, res) => {
-    if (!authenticatedAdmin) {
-        return res.status(401).json({ error: 'Yetkilendirme Hatası' });
-    }
-
-    try {
-        const newClass = req.body;
-        const classesData = await fs.readFile(CLASSES_FILE, 'utf8').catch(() => '[]');
-        const classes = JSON.parse(classesData);
-        
-        const existingIndex = classes.findIndex(c => c.id === newClass.id);
-        if (existingIndex !== -1) {
-            classes[existingIndex] = newClass;
-        } else {
-            newClass.id = Date.now().toString();
-            classes.push(newClass);
-        }
-
-        await fs.writeFile(CLASSES_FILE, JSON.stringify(classes, null, 2));
-        res.json({ success: true, class: newClass });
-    } catch (error) {
-        console.error('Sınıf kaydetme hatası:', error);
-        res.status(500).json({ error: 'Sınıf kaydedilirken bir hata oluştu.' });
+app.delete('/api/classes/:name', (req, res) => {
+    const className = req.params.name;
+    const index = classes.indexOf(className);
+    if (index !== -1) {
+        classes.splice(index, 1);
+        markers = markers.filter(m => m.class !== className);
+        res.json({ success: true });
+    } else {
+        res.status(404).json({ success: false, error: 'Sınıf bulunamadı.' });
     }
 });
 
-// Sınıf silme
-app.delete('/api/classes/:id', async (req, res) => {
-    if (!authenticatedAdmin) {
-        return res.status(401).json({ error: 'Yetkilendirme Hatası' });
-    }
+// Server-side password hashing (for demo purposes)
+async function hashPassword(password) {
+    const crypto = require('crypto');
+    return crypto.createHash('sha256').update(password).digest('hex');
+}
 
-    try {
-        const classId = req.params.id;
-        const classesData = await fs.readFile(CLASSES_FILE, 'utf8');
-        let classes = JSON.parse(classesData);
-        const initialLength = classes.length;
-        classes = classes.filter(c => c.id !== classId);
-
-        if (classes.length === initialLength) {
-            return res.status(404).json({ error: 'Sınıf bulunamadı.' });
-        }
-
-        await fs.writeFile(CLASSES_FILE, JSON.stringify(classes, null, 2));
-        res.json({ success: true, message: 'Sınıf silindi.' });
-    } catch (error) {
-        console.error('Sınıf silme hatası:', error);
-        res.status(500).json({ error: 'Sınıf silinirken bir hata oluştu.' });
-    }
-});
-
-// Sunucuyu başlat
-app.listen(process.env.PORT || 8000, () => {
+app.listen(8000, () => {
     console.log('Sunucu http://localhost:8000 adresinde çalışıyor');
 });
