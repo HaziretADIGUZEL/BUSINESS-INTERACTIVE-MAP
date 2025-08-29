@@ -1,8 +1,8 @@
-const BACKEND_URL = 'https://busyness-interactive-map.onrender.com'; // Replace with your Render URL in production
+const BACKEND_URL = 'https://busyness-interactive-map.onrender.com'; // Render URL
 let map;
 let markerLayers = [];
 let classes = [];
-let isLoggedIn = false;
+let isLoggedIn = localStorage.getItem('isLoggedIn') === 'true' || false;
 let selectedMarkerIndex = -1;
 let highlightedMarkers = [];
 let activeFilters = new Set();
@@ -11,6 +11,8 @@ let tempImages = [];
 let currentImages = [];
 let currentImageIndex = 0;
 let imageViewerMap = null;
+const svgHeight = 7598.6665; // Global scope for svg dimensions
+const svgWidth = 8020;
 
 async function hashPassword(password) {
     const encoder = new TextEncoder();
@@ -58,8 +60,6 @@ async function initApp() {
     }
 
     var imageUrl = 'plan.svg';
-    var svgHeight = 7598.6665;
-    var svgWidth = 8020;
     var imageBounds = [[0, 0], [svgHeight, svgWidth]];
     console.log('SVG yükleniyor:', imageUrl);
     try {
@@ -89,6 +89,12 @@ async function initApp() {
     setupEventListeners();
     await loadInitialData();
     updateAdminUI();
+
+    // Otomatik login kontrolü
+    if (!isLoggedIn) {
+        const loginModal = document.getElementById('login-modal');
+        if (loginModal) loginModal.style.display = 'block';
+    }
 }
 
 function setupEventListeners() {
@@ -274,102 +280,22 @@ function setupEventListeners() {
         });
     }
 
+    // Marker sürükleme için olay dinleyici
     map.on('click', function(e) {
-        if (isLoggedIn && document.getElementById('edit-modal').style.display === 'block') {
+        if (isLoggedIn && document.getElementById('edit-modal').style.display === 'block' && selectedMarkerIndex === -1) {
             var latLng = [e.latlng.lat.toFixed(2), e.latlng.lng.toFixed(2)];
             document.getElementById('latlng-input').value = latLng.join(', ');
             var tempMarker = L.marker(latLng).addTo(map);
             setTimeout(function() { map.removeLayer(tempMarker); }, 2000);
         }
     });
-
-    const prevButton = document.querySelector('.prev-button');
-    const nextButton = document.querySelector('.next-button');
-    const imageViewerCloseBtn = document.querySelector('.image-viewer-close');
-    if (prevButton) {
-        prevButton.addEventListener('click', function() {
-            if (currentImages.length > 1) {
-                currentImageIndex = (currentImageIndex - 1 + currentImages.length) % currentImages.length;
-                console.log('Önceki görsel:', currentImages[currentImageIndex]);
-                updateImageViewer();
-            }
-        });
-    }
-    if (nextButton) {
-        nextButton.addEventListener('click', function() {
-            if (currentImages.length > 1) {
-                currentImageIndex = (currentImageIndex + 1) % currentImages.length;
-                console.log('Sonraki görsel:', currentImages[currentImageIndex]);
-                updateImageViewer();
-            }
-        });
-    }
-    if (imageViewerCloseBtn) {
-        imageViewerCloseBtn.addEventListener('click', function() {
-            const imageViewerModal = document.getElementById('image-viewer-modal');
-            if (imageViewerModal) imageViewerModal.style.display = 'none';
-            const editModal = document.getElementById('edit-modal');
-            if (editModal) editModal.querySelector('#image-error').textContent = '';
-        });
-    }
-
-    const selectAllFilters = document.getElementById('select-all-filters');
-    const hideAllFilters = document.getElementById('hide-all-filters');
-    const inversionToggle = document.getElementById('inversion-toggle');
-    if (selectAllFilters) {
-        selectAllFilters.addEventListener('change', function() {
-            if (hideAllFilters) hideAllFilters.checked = false;
-            document.querySelectorAll('.filter-checkbox').forEach(checkbox => {
-                checkbox.checked = this.checked;
-            });
-            updateFilters();
-        });
-    }
-
-    if (hideAllFilters) {
-        hideAllFilters.addEventListener('change', function() {
-            if (selectAllFilters) selectAllFilters.checked = false;
-            if (this.checked) {
-                document.querySelectorAll('.filter-checkbox').forEach(checkbox => {
-                    checkbox.checked = false;
-                });
-            }
-            updateFilters();
-        });
-    }
-
-    if (inversionToggle) {
-        inversionToggle.addEventListener('change', function() {
-            inversionActive = this.checked;
-            applyFilters();
-        });
-    }
-}
-
-async function loadInitialData() {
-    try {
-        const markersResponse = await fetch(`${BACKEND_URL}/api/markers`);
-        if (!markersResponse.ok) throw new Error('Markers yüklenemedi.');
-        const markersData = await markersResponse.json();
-
-        const classesResponse = await fetch(`${BACKEND_URL}/api/classes`);
-        if (!classesResponse.ok) throw new Error('Classes yüklenemedi.');
-        classes = await classesResponse.json();
-
-        markerLayers = [];
-        markersData.forEach(addMarkerToMap);
-        displayClasses();
-        applyFilters();
-    } catch (error) {
-        console.error('Veri yükleme hatası:', error);
-        alert('Veriler yüklenirken bir hata oluştu. Sunucuya erişim sağlanamıyor.');
-    }
 }
 
 async function handleLogin(e) {
     e.preventDefault();
-    const username = document.getElementById('username-input').value;
-    const password = document.getElementById('password-input').value;
+    const username = document.getElementById('username').value;
+    const password = document.getElementById('password').value;
+    const loginError = document.getElementById('login-error');
     try {
         const hashedPassword = await hashPassword(password);
         const response = await fetch(`${BACKEND_URL}/api/login`, {
@@ -377,231 +303,198 @@ async function handleLogin(e) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ username, password: hashedPassword })
         });
-        const data = await response.json();
-        const loginModal = document.getElementById('login-modal');
-        if (data.success) {
+        const result = await response.json();
+        if (result.success) {
             isLoggedIn = true;
-            console.log('Giriş başarılı!');
-            if (loginModal) loginModal.style.display = 'none';
-            document.getElementById('admin-toggle').textContent = 'Admin Modu Kapat';
-            document.getElementById('show-admin-panel').style.display = 'block';
-            document.getElementById('manage-classes-btn').style.display = 'block';
-            loadMarkers();
+            localStorage.setItem('isLoggedIn', 'true');
+            document.getElementById('login-modal').style.display = 'none';
+            updateAdminUI();
         } else {
-            isLoggedIn = false;
-            if (loginModal) loginModal.querySelector('#login-error').textContent = data.message;
+            loginError.textContent = result.message || 'Giriş başarısız!';
         }
-        updateAdminUI();
     } catch (error) {
-        console.error('Giriş isteği başarısız:', error);
-        const loginModal = document.getElementById('login-modal');
-        if (loginModal) loginModal.querySelector('#login-error').textContent = 'Giriş sırasında bir ağ hatası oluştu.';
+        console.error('Giriş hatası:', error);
+        loginError.textContent = 'Sunucu bağlantı hatası.';
     }
 }
 
-function handleLogout() {
-    fetch(`${BACKEND_URL}/api/logout`, { method: 'POST' })
-        .then(() => {
-            isLoggedIn = false;
-            document.getElementById('admin-toggle').textContent = 'Admin Modu';
-            document.getElementById('show-admin-panel').style.display = 'none';
-            document.getElementById('manage-classes-btn').style.display = 'none';
-            loadMarkers();
-            document.getElementById('admin-modal').style.display = 'none';
-            updateAdminUI();
-            console.log('Çıkış başarılı!');
-        })
-        .catch(error => console.error('Çıkış hatası:', error));
+async function handleLogout() {
+    try {
+        await fetch(`${BACKEND_URL}/api/logout`, { method: 'POST' });
+        isLoggedIn = false;
+        localStorage.setItem('isLoggedIn', 'false');
+        updateAdminUI();
+        const adminModal = document.getElementById('admin-modal');
+        if (adminModal) adminModal.style.display = 'none';
+    } catch (error) {
+        console.error('Çıkış hatası:', error);
+    }
 }
 
 function updateAdminUI() {
-    const loginSection = document.getElementById('login-modal');
-    const adminPanel = document.getElementById('admin-modal');
-    const showAdminPanelBtn = document.getElementById('show-admin-panel');
-    const manageClassesBtn = document.getElementById('manage-classes-btn');
-    if (isLoggedIn) {
-        if (loginSection) loginSection.style.display = 'none';
-        if (showAdminPanelBtn) showAdminPanelBtn.style.display = 'block';
-        if (manageClassesBtn) manageClassesBtn.style.display = 'block';
-        if (adminPanel) adminPanel.classList.add('visible');
-    } else {
-        if (loginSection) loginSection.style.display = 'block';
-        if (showAdminPanelBtn) showAdminPanelBtn.style.display = 'none';
-        if (manageClassesBtn) manageClassesBtn.style.display = 'none';
-        if (adminPanel) adminPanel.classList.remove('visible');
+    const adminToggle = document.getElementById('admin-toggle');
+    const showAdminPanel = document.getElementById('show-admin-panel');
+    if (adminToggle) {
+        adminToggle.textContent = isLoggedIn ? 'Çıkış Yap' : 'Giriş Yap';
+    }
+    if (showAdminPanel) {
+        showAdminPanel.style.display = isLoggedIn ? 'block' : 'none';
     }
 }
 
-async function saveMarker(markerData) {
+async function loadInitialData() {
+    try {
+        const markersResponse = await fetch(`${BACKEND_URL}/api/markers`);
+        if (!markersResponse.ok) throw new Error('Markerlar yüklenemedi.');
+        const markers = await markersResponse.json();
+        markerLayers = markers.map((data, index) => {
+            const marker = L.marker(data.latLng, { draggable: isLoggedIn });
+            marker.data = data;
+            marker.originalIcon = L.divIcon({ className: 'marker-icon', iconSize: [20, 20], html: '' });
+            marker.setIcon(marker.originalIcon);
+            marker.addTo(map);
+            marker.bindPopup(`<b>${data.title}</b><br>${data.description}`);
+            if (isLoggedIn) {
+                marker.on('dragend', function(e) {
+                    const newLatLng = [e.target.getLatLng().lat.toFixed(2), e.target.getLatLng().lng.toFixed(2)];
+                    marker.data.latLng = newLatLng;
+                    saveMarker(marker.data);
+                });
+            }
+            return { marker, data, originalIcon: marker.originalIcon };
+        });
+
+        const classesResponse = await fetch(`${BACKEND_URL}/api/classes`);
+        if (!classesResponse.ok) throw new Error('Sınıflar yüklenemedi.');
+        classes = await classesResponse.json();
+        displayClasses();
+    } catch (error) {
+        console.error('Veri yükleme hatası:', error);
+        alert('Veriler yüklenemedi: ' + error.message);
+    }
+}
+
+async function saveMarker(data) {
     try {
         const response = await fetch(`${BACKEND_URL}/api/markers`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(markerData)
+            body: JSON.stringify(data)
         });
-        const data = await response.json();
-        if (data.success) {
-            alert('Marker başarıyla kaydedildi.');
-            await loadInitialData();
+        const result = await response.json();
+        if (result.success) {
+            if (selectedMarkerIndex !== -1) {
+                // Güncelleme: Mevcut markerı güncelle
+                markerLayers[selectedMarkerIndex].data = result.marker;
+                markerLayers[selectedMarkerIndex].marker.setLatLng(result.marker.latLng);
+                markerLayers[selectedMarkerIndex].marker.bindPopup(`<b>${result.marker.title}</b><br>${result.marker.description}`);
+            } else {
+                // Yeni marker: Ekle
+                const marker = L.marker(result.marker.latLng, { draggable: isLoggedIn });
+                marker.data = result.marker;
+                marker.originalIcon = L.divIcon({ className: 'marker-icon', iconSize: [20, 20], html: '' });
+                marker.setIcon(marker.originalIcon);
+                marker.addTo(map);
+                marker.bindPopup(`<b>${result.marker.title}</b><br>${result.marker.description}`);
+                if (isLoggedIn) {
+                    marker.on('dragend', function(e) {
+                        const newLatLng = [e.target.getLatLng().lat.toFixed(2), e.target.getLatLng().lng.toFixed(2)];
+                        marker.data.latLng = newLatLng;
+                        saveMarker(marker.data);
+                    });
+                }
+                markerLayers.push({ marker, data: result.marker, originalIcon: marker.originalIcon });
+            }
+            loadAdminMarkers();
         } else {
-            alert('Marker kaydedilirken bir hata oluştu: ' + data.error);
+            alert('Marker kaydedilemedi: ' + result.error);
         }
     } catch (error) {
         console.error('Marker kaydetme hatası:', error);
-        alert('Sunucuya bağlanılamıyor.');
+        alert('Marker kaydedilemedi: Sunucu bağlantı hatası.');
     }
 }
 
-async function deleteMarker(markerId) {
+async function deleteMarker(id) {
     try {
-        const response = await fetch(`${BACKEND_URL}/api/markers/${markerId}`, {
-            method: 'DELETE'
-        });
-        const data = await response.json();
-        if (data.success) {
-            alert('Marker başarıyla silindi.');
-            await loadInitialData();
+        const response = await fetch(`${BACKEND_URL}/api/markers/${id}`, { method: 'DELETE' });
+        const result = await response.json();
+        if (result.success) {
+            const index = markerLayers.findIndex(layer => layer.data.id === id);
+            if (index !== -1) {
+                map.removeLayer(markerLayers[index].marker);
+                markerLayers.splice(index, 1);
+                loadAdminMarkers();
+            }
         } else {
-            alert(data.error);
+            alert('Marker silinemedi: ' + result.error);
         }
     } catch (error) {
         console.error('Marker silme hatası:', error);
-        alert('Sunucuya bağlanılamıyor.');
+        alert('Marker silinemedi: Sunucu bağlantı hatası.');
     }
 }
 
 async function handleAddClass(e) {
     e.preventDefault();
-    const classNameInput = document.getElementById('new-class-name');
-    const newClassName = classNameInput.value.trim();
-    if (newClassName) {
+    const className = document.getElementById('class-name').value;
+    if (className && !classes.includes(className)) {
         try {
             const response = await fetch(`${BACKEND_URL}/api/classes`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name: newClassName })
+                body: JSON.stringify({ name: className })
             });
-            const data = await response.json();
-            if (data.success) {
-                alert('Sınıf başarıyla eklendi.');
-                classNameInput.value = '';
-                await loadInitialData();
+            const result = await response.json();
+            if (result.success) {
+                classes.push(className);
+                displayClasses();
+                document.getElementById('class-name').value = '';
+                document.getElementById('class-modal').style.display = 'none';
+                document.getElementById('admin-modal').style.display = 'block';
             } else {
-                alert(data.error);
+                alert('Sınıf eklenemedi: ' + result.error);
             }
         } catch (error) {
             console.error('Sınıf ekleme hatası:', error);
-            alert('Sunucuya bağlanılamıyor.');
+            alert('Sınıf eklenemedi: Sunucu bağlantı hatası.');
         }
+    } else {
+        alert('Geçersiz veya mevcut sınıf adı.');
     }
 }
 
 async function deleteClass(className) {
-    if (confirm('Bu sınıfı ve ona atanmış tüm markerları silmek istediğinizden emin misiniz?')) {
+    if (confirm(`'${className}' sınıfını silmek istediğinizden emin misiniz?`)) {
         try {
-            const response = await fetch(`${BACKEND_URL}/api/classes/${className}`, {
+            const response = await fetch(`${BACKEND_URL}/api/classes/${encodeURIComponent(className)}`, {
                 method: 'DELETE'
             });
-            const data = await response.json();
-            if (data.success) {
-                alert('Sınıf başarıyla silindi.');
-                await loadInitialData();
+            const result = await response.json();
+            if (result.success) {
+                classes = classes.filter(c => c !== className);
+                markerLayers.forEach(layer => {
+                    if (layer.data.class === className) {
+                        map.removeLayer(layer.marker);
+                        markerLayers.splice(markerLayers.indexOf(layer), 1);
+                    }
+                });
+                displayClasses();
+                loadAdminMarkers();
             } else {
-                alert(data.error);
+                alert('Sınıf silinemedi: ' + result.error);
             }
         } catch (error) {
             console.error('Sınıf silme hatası:', error);
-            alert('Sunucuya bağlanılamıyor.');
+            alert('Sınıf silinemedi: Sunucu bağlantı hatası.');
         }
     }
-}
-
-function addMarkerToMap(markerData, index) {
-    var marker = L.marker([markerData.latLng[0], markerData.latLng[1]], {
-        icon: L.divIcon({
-            className: 'marker-icon',
-            iconSize: [20, 20],
-            html: ''
-        }),
-        draggable: isLoggedIn
-    }).addTo(map);
-
-    marker.bindPopup(createPopupContent(markerData, index), {
-        autoPan: true,
-        autoPanPadding: [50, 50]
-    });
-
-    marker.on('click', function(e) {
-        map.closePopup();
-        marker.setIcon(L.divIcon({
-            className: 'marker-icon active',
-            iconSize: [20, 20],
-            html: ''
-        }));
-        setTimeout(() => {
-            marker.setIcon(L.divIcon({
-                className: 'marker-icon',
-                iconSize: [20, 20],
-                html: ''
-            }));
-        }, 200);
-
-        var point = map.latLngToContainerPoint(marker.getLatLng());
-        var mapHeight = map.getSize().y;
-        var isTop60Percent = point.y < mapHeight * 0.6;
-
-        var popup = marker.getPopup();
-        popup.options.offset = [0, isTop60Percent ? 40 : -40];
-        popup.options.autoPanPaddingTopLeft = L.point(50, isTop60Percent ? 200 : 50);
-        popup.options.autoPanPaddingBottomRight = L.point(50, isTop60Percent ? 50 : 200);
-        marker.openPopup();
-
-        setTimeout(() => {
-            popup.update();
-        }, 0);
-    });
-
-    marker.on('dragend', function(e) {
-        markerData.latLng = [marker.getLatLng().lat, marker.getLatLng().lng];
-        saveMarker(markerData);
-    });
-
-    markerLayers.push({ marker: marker, data: markerData, originalIcon: marker.options.icon });
-}
-
-function createPopupContent(markerData, index) {
-    var imagesHtml = markerData.images && markerData.images.length > 0
-        ? `<div class="marker-images">${markerData.images.map((img, i) => `<img src="${img}" alt="Image ${i}" onclick="openImageViewer(${index}, ${i})">`).join('')}</div>`
-        : '<img src="https://via.placeholder.com/150" alt="No image" style="width:80px;height:80px;object-fit:cover;">';
-    var adminEditButton = isLoggedIn ? `<button class="edit-button" onclick="editMarker(${index})">Düzenle</button>` : '';
-    return `
-        <h2>${markerData.title}</h2>
-        <p>${markerData.description}</p>
-        ${imagesHtml}
-        ${adminEditButton}
-    `;
-}
-
-function resetFilters() {
-    activeFilters.clear();
-    inversionActive = false;
-    const inversionToggle = document.getElementById('inversion-toggle');
-    const selectAllFilters = document.getElementById('select-all-filters');
-    const hideAllFilters = document.getElementById('hide-all-filters');
-
-    if (inversionToggle) inversionToggle.checked = false;
-    if (selectAllFilters) selectAllFilters.checked = false;
-    if (hideAllFilters) hideAllFilters.checked = false;
-
-    document.querySelectorAll('.filter-checkbox').forEach(checkbox => {
-        checkbox.checked = false;
-    });
 }
 
 function showSuggestions(query) {
     const suggestionsList = document.getElementById('search-suggestions');
     suggestionsList.innerHTML = '';
-    if (query.trim() === '') {
+    if (!query) {
         suggestionsList.style.display = 'none';
         return;
     }
@@ -632,10 +525,8 @@ function showSuggestions(query) {
         li.addEventListener('click', function() {
             suggestionsList.innerHTML = '';
             suggestionsList.style.display = 'none';
-
             resetFilters();
             markerLayers.forEach(l => map.removeLayer(l.marker));
-
             map.flyTo(layer.marker.getLatLng(), 1);
             layer.marker.openPopup();
             highlightedMarkers.forEach(function(l) {
@@ -691,7 +582,6 @@ function performSearch(query) {
 function handleSearchSuggestionsClick(e) {
     const target = e.target.closest('.suggestion-item');
     if (!target) return;
-    const index = Array.from(document.querySelectorAll('.suggestion-item')).indexOf(target);
     const layer = markerLayers.find(l => l.data.title === target.querySelector('.title').textContent);
     if (layer) {
         document.getElementById('search-suggestions').style.display = 'none';
@@ -908,8 +798,6 @@ function applyFilters() {
     if (activeFilters.size === 0 && !inversionActive) {
         const selectAllFilters = document.getElementById('select-all-filters');
         if (selectAllFilters && selectAllFilters.checked) {
-            // Do nothing, all markers are already shown
-        } else {
             markerLayers.forEach(layer => {
                 layer.marker.addTo(map);
             });
@@ -924,7 +812,7 @@ function applyFilters() {
         if (inversionActive) {
             isVisible = !hasClass;
         } else {
-            isVisible = hasClass;
+            isVisible = hasClass || activeFilters.size === 0;
         }
 
         if (isVisible) {
@@ -943,9 +831,9 @@ window.openEditModal = function(data, index) {
 
     displayClasses();
 
-    document.getElementById('title-input').value = data.title;
-    document.getElementById('desc-input').value = data.description;
-    document.getElementById('latlng-input').value = data.latLng.join(', ');
+    document.getElementById('title-input').value = data.title || '';
+    document.getElementById('desc-input').value = data.description || '';
+    document.getElementById('latlng-input').value = data.latLng ? data.latLng.join(', ') : '';
     document.getElementById('class-select').value = data.class || '';
     tempImages = data.images || [];
     updateImageList();
@@ -990,6 +878,30 @@ function loadMarkers() {
     });
     markerLayers = [];
     loadInitialData();
+}
+
+function resetFilters() {
+    activeFilters.clear();
+    document.querySelectorAll('.filter-checkbox').forEach(checkbox => {
+        checkbox.checked = false;
+    });
+    const hideAllFilters = document.getElementById('hide-all-filters');
+    const selectAllFilters = document.getElementById('select-all-filters');
+    if (hideAllFilters) hideAllFilters.checked = false;
+    if (selectAllFilters) selectAllFilters.checked = false;
+    applyFilters();
+}
+
+async function loadClassList() {
+    try {
+        const response = await fetch(`${BACKEND_URL}/api/classes`);
+        if (!response.ok) throw new Error('Sınıflar yüklenemedi.');
+        classes = await response.json();
+        displayClasses();
+    } catch (error) {
+        console.error('Sınıf yükleme hatası:', error);
+        alert('Sınıflar yüklenemedi: ' + error.message);
+    }
 }
 
 document.addEventListener('DOMContentLoaded', function() {
