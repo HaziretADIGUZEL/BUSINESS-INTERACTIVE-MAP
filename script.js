@@ -2,7 +2,7 @@ const BACKEND_URL = 'https://busyness-interactive-map.onrender.com'; // Render U
 let map;
 let markerLayers = [];
 let classes = [];
-let isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
+let isLoggedIn = localStorage.getItem('isLoggedIn') === 'true' || false;
 let selectedMarkerIndex = -1;
 let highlightedMarkers = [];
 let activeFilters = new Set();
@@ -11,7 +11,7 @@ let tempImages = [];
 let currentImages = [];
 let currentImageIndex = 0;
 let imageViewerMap = null;
-const svgHeight = 7598.6665;
+const svgHeight = 7598.6665; // Global scope for svg dimensions
 const svgWidth = 8020;
 
 async function hashPassword(password) {
@@ -92,6 +92,9 @@ async function initApp() {
     if (!isLoggedIn) {
         const loginModal = document.getElementById('login-modal');
         if (loginModal) loginModal.style.display = 'block';
+    } else {
+        const loginModal = document.getElementById('login-modal');
+        if (loginModal) loginModal.style.display = 'none';
     }
 }
 
@@ -109,7 +112,8 @@ function setupEventListeners() {
             if (isLoggedIn) {
                 handleLogout();
             } else {
-                document.getElementById('login-modal').style.display = 'block';
+                const loginModal = document.getElementById('login-modal');
+                if (loginModal) loginModal.style.display = 'block';
             }
         });
     }
@@ -359,10 +363,12 @@ function setupEventListeners() {
 async function loadInitialData() {
     try {
         const markersResponse = await fetch(`${BACKEND_URL}/api/markers`);
-        if (!markersResponse.ok) throw new Error('Markers yüklene medi.');
+        if (!markersResponse.ok) throw new Error('Markers yüklenemedi.');
         const markersData = await markersResponse.json();
         markerLayers = [];
-        markersData.forEach((markerData, index) => addMarkerToMap(markerData, index));
+        markersData.forEach((markerData, index) => {
+            addMarkerToMap(markerData, index);
+        });
 
         const classesResponse = await fetch(`${BACKEND_URL}/api/classes`);
         if (!classesResponse.ok) throw new Error('Classes yüklenemedi.');
@@ -375,6 +381,145 @@ async function loadInitialData() {
     }
 }
 
+function updateAdminUI() {
+    const loginSection = document.getElementById('login-section');
+    const adminPanel = document.querySelector('.admin-panel');
+    const adminToggle = document.getElementById('admin-toggle');
+    if (isLoggedIn) {
+        if (loginSection) loginSection.style.display = 'none';
+        if (adminPanel) adminPanel.classList.add('visible');
+        if (adminToggle) adminToggle.textContent = 'Çıkış Yap';
+    } else {
+        if (loginSection) loginSection.style.display = 'block';
+        if (adminPanel) adminPanel.classList.remove('visible');
+        if (adminToggle) adminToggle.textContent = 'Admin Modu';
+    }
+    loadMarkers();
+}
+
+async function handleLogin(e) {
+    e.preventDefault();
+    const username = document.getElementById('username').value;
+    const password = document.getElementById('password').value;
+    try {
+        const hashedPassword = await hashPassword(password);
+        const response = await fetch(`${BACKEND_URL}/api/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password: hashedPassword })
+        });
+        const data = await response.json();
+        if (data.success) {
+            isLoggedIn = true;
+            localStorage.setItem('isLoggedIn', 'true');
+            updateAdminUI();
+            console.log('Giriş başarılı!');
+        } else {
+            isLoggedIn = false;
+            alert(data.message);
+        }
+        updateAdminUI();
+    } catch (error) {
+        console.error('Giriş isteği başarısız:', error);
+        alert('Giriş sırasında bir ağ hatası oluştu.');
+    }
+}
+
+function handleLogout() {
+    fetch(`${BACKEND_URL}/api/logout`, { method: 'POST' })
+        .then(() => {
+            isLoggedIn = false;
+            localStorage.setItem('isLoggedIn', 'false');
+            updateAdminUI();
+            console.log('Çıkış başarılı!');
+        })
+        .catch(error => console.error('Çıkış hatası:', error));
+}
+
+async function saveMarker(markerData) {
+    try {
+        const response = await fetch(`${BACKEND_URL}/api/markers`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(markerData)
+        });
+        const data = await response.json();
+        if (data.success) {
+            alert('Marker başarıyla kaydedildi.');
+            await loadInitialData();
+        } else {
+            alert('Marker kaydedilirken bir hata oluştu.');
+        }
+    } catch (error) {
+        console.error('Marker kaydetme hatası:', error);
+        alert('Sunucuya bağlanılamıyor.');
+    }
+}
+
+async function deleteMarker(markerId) {
+    try {
+        const response = await fetch(`${BACKEND_URL}/api/markers/${markerId}`, {
+            method: 'DELETE'
+        });
+        const data = await response.json();
+        if (data.success) {
+            alert('Marker başarıyla silindi.');
+            await loadInitialData();
+        } else {
+            alert(data.error);
+        }
+    } catch (error) {
+        console.error('Marker silme hatası:', error);
+        alert('Sunucuya bağlanılamıyor.');
+    }
+}
+
+async function handleAddClass(e) {
+    e.preventDefault();
+    const classNameInput = document.getElementById('class-name-input');
+    const newClassName = classNameInput.value.trim();
+    if (newClassName) {
+        try {
+            const response = await fetch(`${BACKEND_URL}/api/classes`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: newClassName })
+            });
+            const data = await response.json();
+            if (data.success) {
+                alert('Sınıf başarıyla eklendi.');
+                classNameInput.value = '';
+                await loadInitialData();
+            } else {
+                alert(data.error);
+            }
+        } catch (error) {
+            console.error('Sınıf ekleme hatası:', error);
+            alert('Sunucuya bağlanılamıyor.');
+        }
+    }
+}
+
+async function deleteClass(classId) {
+    if (confirm('Bu sınıfı silmek istediğinizden emin misiniz?')) {
+        try {
+            const response = await fetch(`${BACKEND_URL}/api/classes/${classId}`, {
+                method: 'DELETE'
+            });
+            const data = await response.json();
+            if (data.success) {
+                alert('Sınıf başarıyla silindi.');
+                await loadInitialData();
+            } else {
+                alert(data.error);
+            }
+        } catch (error) {
+            console.error('Sınıf silme hatası:', error);
+            alert('Sunucuya bağlanılamıyor.');
+        }
+    }
+}
+
 function addMarkerToMap(markerData, index) {
     var marker = L.marker([markerData.latLng[0], markerData.latLng[1]], {
         icon: L.divIcon({
@@ -382,13 +527,12 @@ function addMarkerToMap(markerData, index) {
             iconSize: [20, 20],
             html: ''
         }),
-        draggable: isLoggedIn // Admin modunda sürüklenabilir
+        draggable: isLoggedIn // Admin modunda sürükle
     }).addTo(map);
 
-    // Pop-up'ı bağla
     marker.bindPopup(createPopupContent(markerData, index), {
         autoPan: true,
-        autoPanPadding: [50, 50]
+        autoPanPadding: [50, 50] // Harita sınırlarıyla çakışmayı azaltmak için
     });
 
     marker.on('click', function(e) {
@@ -421,12 +565,10 @@ function addMarkerToMap(markerData, index) {
         }, 0);
     });
 
-    if (isLoggedIn) {
-        marker.on('dragend', function(e) {
-            markerData.latLng = [marker.getLatLng().lat, marker.getLatLng().lng];
-            saveMarker(markerData);
-        });
-    }
+    marker.on('dragend', function(e) {
+        markerData.latLng = [marker.getLatLng().lat, marker.getLatLng().lng];
+        saveMarker(markerData);
+    });
 
     markerLayers.push({ marker: marker, data: markerData, originalIcon: marker.options.icon });
 }
@@ -444,54 +586,6 @@ function createPopupContent(markerData, index) {
     `;
 }
 
-function updateAdminUI() {
-    const adminToggle = document.getElementById('admin-toggle');
-    const showAdminPanel = document.getElementById('show-admin-panel');
-    const manageClassesBtn = document.getElementById('manage-classes-btn');
-    if (adminToggle) adminToggle.textContent = isLoggedIn ? 'Admin Modu Kapat' : 'Admin Modu';
-    if (showAdminPanel) showAdminPanel.style.display = isLoggedIn ? 'block' : 'none';
-    if (manageClassesBtn) manageClassesBtn.style.display = isLoggedIn ? 'block' : 'none';
-    loadMarkers();
-}
-
-async function handleLogin(e) {
-    e.preventDefault();
-    const username = document.getElementById('username-input').value;
-    const password = document.getElementById('password-input').value;
-    try {
-        const hashedPassword = await hashPassword(password);
-        const response = await fetch(`${BACKEND_URL}/api/login`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, password: hashedPassword })
-        });
-        const data = await response.json();
-        if (data.success) {
-            isLoggedIn = true;
-            localStorage.setItem('isLoggedIn', 'true');
-            document.getElementById('login-modal').style.display = 'none';
-            updateAdminUI();
-            console.log('Giriş başarılı!');
-        } else {
-            document.getElementById('login-error').textContent = data.message;
-        }
-    } catch (error) {
-        console.error('Giriş isteği başarısız:', error);
-        document.getElementById('login-error').textContent = 'Giriş sırasında bir ağ hatası oluştu.';
-    }
-}
-
-function handleLogout() {
-    fetch(`${BACKEND_URL}/api/logout`, { method: 'POST' })
-        .then(() => {
-            isLoggedIn = false;
-            localStorage.setItem('isLoggedIn', 'false');
-            updateAdminUI();
-            console.log('Çıkış başarılı!');
-        })
-        .catch(error => console.error('Çıkış hatası:', error));
-}
-
 function resetFilters() {
     activeFilters.clear();
     inversionActive = false;
@@ -502,10 +596,394 @@ function resetFilters() {
     if (inversionToggle) inversionToggle.checked = false;
     if (selectAllFilters) selectAllFilters.checked = false;
     if (hideAllFilters) hideAllFilters.checked = false;
-    
+
     document.querySelectorAll('.filter-checkbox').forEach(checkbox => {
         checkbox.checked = false;
     });
+}
+
+function showSuggestions(query) {
+    const suggestionsList = document.getElementById('search-suggestions');
+    suggestionsList.innerHTML = '';
+    if (query.trim() === '') {
+        suggestionsList.style.display = 'none';
+        return;
+    }
+
+    var matchingMarkers = markerLayers.filter(function(layer) {
+        var title = layer.data.title.toLowerCase();
+        var description = layer.data.description.toLowerCase();
+        return title.includes(query.toLowerCase()) || description.includes(query.toLowerCase());
+    });
+
+    if (matchingMarkers.length === 0) {
+        suggestionsList.style.display = 'none';
+        return;
+    }
+
+    matchingMarkers.forEach(function(layer) {
+        var li = document.createElement('li');
+        li.className = 'suggestion-item';
+        var imgSrc = layer.data.images && layer.data.images.length > 0 ? layer.data.images[0] : 'https://via.placeholder.com/40';
+        var descShort = layer.data.description.length > 30 ? layer.data.description.substring(0, 30) + '...' : layer.data.description;
+        li.innerHTML = `
+            <img src="${imgSrc}" alt="${layer.data.title}">
+            <div>
+                <div class="title">${layer.data.title}</div>
+                <div class="description">${descShort}</div>
+            </div>
+        `;
+        li.addEventListener('click', function() {
+            suggestionsList.innerHTML = '';
+            suggestionsList.style.display = 'none';
+
+            resetFilters();
+            markerLayers.forEach(l => map.removeLayer(l.marker));
+
+            map.flyTo(layer.marker.getLatLng(), 1);
+            layer.marker.openPopup();
+            highlightedMarkers.forEach(function(l) {
+                l.marker.setIcon(l.originalIcon);
+            });
+            highlightedMarkers = [];
+            layer.marker.setIcon(L.divIcon({
+                className: 'marker-icon-highlight',
+                iconSize: [20, 20],
+                html: ''
+            }));
+            highlightedMarkers.push(layer);
+            layer.marker.addTo(map);
+        });
+        suggestionsList.appendChild(li);
+    });
+
+    suggestionsList.style.display = 'block';
+}
+
+function performSearch(query) {
+    resetFilters();
+    markerLayers.forEach(layer => map.removeLayer(layer.marker));
+    highlightedMarkers = [];
+
+    var matchingMarkers = markerLayers.filter(function(layer) {
+        var title = layer.data.title.toLowerCase();
+        var description = layer.data.description.toLowerCase();
+        return title.includes(query.toLowerCase()) || description.includes(query.toLowerCase());
+    });
+
+    if (matchingMarkers.length === 0) {
+        alert('Eşleşen marker bulunamadı.');
+        return;
+    }
+
+    matchingMarkers.forEach(function(layer) {
+        layer.marker.addTo(map);
+        layer.marker.setIcon(L.divIcon({
+            className: 'marker-icon-highlight',
+            iconSize: [20, 20],
+            html: ''
+        }));
+        highlightedMarkers.push(layer);
+    });
+
+    if (matchingMarkers.length > 0) {
+        var group = new L.featureGroup(matchingMarkers.map(layer => layer.marker));
+        map.fitBounds(group.getBounds(), { padding: [50, 50] });
+    }
+}
+
+function handleSearchSuggestionsClick(e) {
+    const target = e.target.closest('.suggestion-item');
+    if (!target) return;
+    const index = Array.from(document.querySelectorAll('.suggestion-item')).indexOf(target);
+    const layer = markerLayers.find(l => l.data.title === target.querySelector('.title').textContent);
+    if (layer) {
+        document.getElementById('search-suggestions').style.display = 'none';
+        resetFilters();
+        markerLayers.forEach(l => map.removeLayer(l.marker));
+        map.flyTo(layer.marker.getLatLng(), 1);
+        layer.marker.openPopup();
+        highlightedMarkers.forEach(l => l.marker.setIcon(l.originalIcon));
+        highlightedMarkers = [];
+        layer.marker.setIcon(L.divIcon({
+            className: 'marker-icon-highlight',
+            iconSize: [20, 20],
+            html: ''
+        }));
+        highlightedMarkers.push(layer);
+        layer.marker.addTo(map);
+    }
+}
+
+function displayClasses() {
+    const classList = document.getElementById('class-list');
+    const classSelect = document.getElementById('class-select');
+    const filterOptions = document.getElementById('filter-options');
+
+    if (!classList || !classSelect || !filterOptions) return;
+
+    classList.innerHTML = '';
+    classSelect.innerHTML = '<option value="">-- Sınıf Seç --</option>';
+    filterOptions.innerHTML = '';
+
+    classes.forEach((className, index) => {
+        var li = document.createElement('li');
+        li.className = 'class-item-wrapper';
+        li.innerHTML = `
+            <span>${className}</span>
+            <div>
+                <button onclick="editClass('${className}')">Düzenle</button>
+                <button class="delete-btn" onclick="deleteClass('${className}')">Sil</button>
+            </div>
+        `;
+        classList.appendChild(li);
+
+        var option = document.createElement('option');
+        option.value = className;
+        option.textContent = className;
+        classSelect.appendChild(option);
+
+        var filterLabel = document.createElement('label');
+        filterLabel.innerHTML = `<input type="checkbox" class="filter-checkbox" value="${className}"> ${className}`;
+        filterOptions.appendChild(filterLabel);
+    });
+
+    document.querySelectorAll('.filter-checkbox').forEach(checkbox => {
+        checkbox.checked = activeFilters.has(checkbox.value);
+        checkbox.addEventListener('change', updateFilters);
+    });
+}
+
+function loadAdminMarkers() {
+    var markerList = document.getElementById('marker-list');
+    if (!markerList) return;
+    markerList.innerHTML = '';
+    markerLayers.forEach(function(layer, index) {
+        var li = document.createElement('li');
+        li.style.display = 'flex';
+        li.style.alignItems = 'center';
+        li.style.justifyContent = 'space-between';
+
+        var titleSpan = document.createElement('span');
+        titleSpan.textContent = layer.data.title;
+
+        var btnDiv = document.createElement('div');
+        btnDiv.style.display = 'flex';
+        btnDiv.style.gap = '10px';
+
+        var editBtn = document.createElement('button');
+        editBtn.textContent = 'Düzenle';
+        editBtn.onclick = function(e) {
+            e.stopPropagation();
+            editMarker(index);
+        };
+
+        var deleteBtn = document.createElement('button');
+        deleteBtn.textContent = 'Sil';
+        deleteBtn.onclick = function(e) {
+            e.stopPropagation();
+            if (confirm('Bu markerı silmek istediğinizden emin misiniz?')) {
+                deleteMarker(layer.data.id);
+            }
+        };
+
+        btnDiv.appendChild(editBtn);
+        btnDiv.appendChild(deleteBtn);
+
+        li.appendChild(titleSpan);
+        li.appendChild(btnDiv);
+
+        markerList.appendChild(li);
+    });
+}
+
+function updateImageList() {
+    var imageList = document.getElementById('image-list');
+    if (!imageList) return;
+    imageList.innerHTML = '';
+    tempImages.forEach((img, i) => {
+        var div = document.createElement('div');
+        div.className = 'image-item';
+        div.innerHTML = `
+            <img src="${img}" alt="Image ${i}">
+            <button onclick="tempImages.splice(${i}, 1); updateImageList();">Sil</button>
+        `;
+        imageList.appendChild(div);
+    });
+}
+
+window.editClass = function(className) {
+    const newName = prompt('Yeni sınıf adını girin:', className);
+    if (newName && newName.trim() && !classes.includes(newName.trim())) {
+        const oldName = className;
+        classes = classes.map(c => c === oldName ? newName.trim() : c);
+        markerLayers.forEach(layer => {
+            if (layer.data.class === oldName) {
+                layer.data.class = newName.trim();
+                saveMarker(layer.data);
+            }
+        });
+        displayClasses();
+    }
+};
+
+window.editMarker = function(index) {
+    selectedMarkerIndex = index;
+    openEditModal(markerLayers[index].data, index);
+};
+
+window.openImageViewer = function(markerIndex, imageIndex) {
+    currentImages = markerLayers[markerIndex].data.images || [];
+    currentImageIndex = imageIndex;
+    if (currentImages.length === 0) {
+        console.log('Görsel bulunamadı!');
+        const editModal = document.getElementById('edit-modal');
+        if (editModal) editModal.querySelector('#image-error').textContent = 'Görsel bulunamadı.';
+        return;
+    }
+
+    console.log('Büyük görsel açılıyor:', currentImages[currentImageIndex]);
+
+    if (imageViewerMap) {
+        imageViewerMap.remove();
+    }
+    var viewerDiv = document.getElementById('image-viewer-map');
+    if (!viewerDiv) return;
+    viewerDiv.innerHTML = '';
+    imageViewerMap = L.map('image-viewer-map', {
+        crs: L.CRS.Simple,
+        minZoom: -2,
+        maxZoom: 2,
+        zoomControl: true
+    });
+
+    const imageViewerModal = document.getElementById('image-viewer-modal');
+    if (imageViewerModal) imageViewerModal.style.display = 'block';
+
+    setTimeout(function() {
+        if (imageViewerMap) imageViewerMap.invalidateSize();
+        updateImageViewer();
+    }, 100);
+};
+
+function updateImageViewer() {
+    if (!imageViewerMap) return;
+    imageViewerMap.eachLayer(layer => {
+        if (layer instanceof L.ImageOverlay) {
+            imageViewerMap.removeLayer(layer);
+        }
+    });
+
+    var img = new Image();
+    img.src = currentImages[currentImageIndex];
+
+    img.onload = function() {
+        console.log('Görsel yüklendi:', img.src, { width: img.width, height: img.height });
+        var bounds = [[0, 0], [img.height, img.width]];
+        L.imageOverlay(img.src, bounds).addTo(imageViewerMap);
+        imageViewerMap.fitBounds(bounds);
+        imageViewerMap.setMaxBounds(bounds);
+        const editModal = document.getElementById('edit-modal');
+        if (editModal) editModal.querySelector('#image-error').textContent = '';
+    };
+
+    img.onerror = function() {
+        console.error('Görsel yüklenemedi:', img.src);
+        const editModal = document.getElementById('edit-modal');
+        if (editModal) editModal.querySelector('#image-error').textContent = 'Büyük görsel yüklenemedi: URL geçersiz veya erişilemiyor.';
+    };
+}
+
+function updateFilters() {
+    activeFilters.clear();
+    document.querySelectorAll('.filter-checkbox:checked').forEach(checkbox => {
+        activeFilters.add(checkbox.value);
+    });
+    applyFilters();
+}
+
+function applyFilters() {
+    const hideAllFilters = document.getElementById('hide-all-filters');
+    if (hideAllFilters && hideAllFilters.checked) {
+        markerLayers.forEach(layer => map.removeLayer(layer.marker));
+        return;
+    }
+
+    if (activeFilters.size === 0 && !inversionActive) {
+        const selectAllFilters = document.getElementById('select-all-filters');
+        if (selectAllFilters && selectAllFilters.checked) {
+            // Do nothing, all markers are already shown
+        } else {
+            markerLayers.forEach(layer => {
+                layer.marker.addTo(map);
+            });
+            return;
+        }
+    }
+
+    markerLayers.forEach(layer => {
+        const hasClass = layer.data.class && activeFilters.has(layer.data.class);
+        let isVisible;
+
+        if (inversionActive) {
+            isVisible = !hasClass;
+        } else {
+            isVisible = hasClass;
+        }
+
+        if (isVisible) {
+            layer.marker.addTo(map);
+        } else {
+            map.removeLayer(layer.marker);
+        }
+    });
+}
+
+window.openEditModal = function(data, index) {
+    var editModal = document.getElementById('edit-modal');
+    if (!editModal) return;
+    editModal.style.display = 'block';
+    selectedMarkerIndex = index;
+
+    displayClasses();
+
+    document.getElementById('title-input').value = data.title;
+    document.getElementById('desc-input').value = data.description;
+    document.getElementById('latlng-input').value = data.latLng.join(', ');
+    document.getElementById('class-select').value = data.class || '';
+    tempImages = data.images || [];
+    updateImageList();
+
+    var form = document.getElementById('marker-form');
+    if (!form) return;
+    form.onsubmit = function(ev) {
+        ev.preventDefault();
+        var newData = {
+            latLng: document.getElementById('latlng-input').value.split(', ').map(Number),
+            title: document.getElementById('title-input').value,
+            description: document.getElementById('desc-input').value,
+            images: tempImages,
+            class: document.getElementById('class-select').value
+        };
+        if (selectedMarkerIndex !== -1) {
+            newData.id = markerLayers[selectedMarkerIndex].data.id;
+        }
+        saveMarker(newData);
+        editModal.style.display = 'none';
+        document.getElementById('admin-modal').style.display = 'block';
+    };
+
+    var deleteBtn = document.getElementById('delete-marker');
+    if (deleteBtn) {
+        deleteBtn.style.display = selectedMarkerIndex === -1 ? 'none' : 'block';
+        deleteBtn.onclick = function() {
+            if (selectedMarkerIndex !== -1) {
+                deleteMarker(markerLayers[selectedMarkerIndex].data.id);
+                editModal.style.display = 'none';
+                document.getElementById('admin-modal').style.display = 'block';
+            }
+        };
+    }
 }
 
 function loadMarkers() {
