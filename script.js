@@ -500,11 +500,11 @@ function initApp() {
         });
     }
     
-    // Sınıf modalı kapatıldığında admin panelini aç
+    // Sınıf modalı kapatma (admin panelini açma davranışı kaldırıldı)
     var classModalCloseBtn = document.querySelector('#class-modal .close');
-    if(classModalCloseBtn) {
+    if (classModalCloseBtn) {
         classModalCloseBtn.addEventListener('click', function() {
-            document.getElementById('admin-modal').style.display = 'block';
+            document.getElementById('class-modal').style.display = 'none';
         });
     }
 
@@ -651,6 +651,7 @@ function initApp() {
                     await saveClassToDB(newClassName);
                     loadClassList();
                     document.getElementById('new-class-name').value = '';
+                    document.getElementById('class-modal').style.display = 'none';
                 } catch (error) {
                     alert('Sınıf eklenemedi.');
                 }
@@ -727,11 +728,16 @@ function initApp() {
             div.className = 'image-item';
             div.innerHTML = `
                 <img src="${img}" alt="Image ${i}">
-                <button onclick="tempImages.splice(${i}, 1); updateImageList();">Sil</button>
+                <button onclick="deleteImage(${i})">Sil</button>
             `;
             imageList.appendChild(div);
         });
     }
+
+    window.deleteImage = function(index) {
+        tempImages.splice(index, 1);
+        updateImageList();
+    };
 
     var addImageUrlBtn = document.getElementById('add-image-url');
     if (addImageUrlBtn) {
@@ -811,9 +817,10 @@ function initApp() {
                 } else {
                     newData.id = markersData[selectedMarkerIndex].id;
                     await deleteMarkerFromDB(newData.id);
-                    await saveMarkerToDB(newData);
+                    const savedMarker = await saveMarkerToDB(newData);
+                    markersData[selectedMarkerIndex] = savedMarker; // Yerel veriyi güncelle
                 }
-                loadMarkersFromDB();
+                await loadMarkersFromDB(); // Backend'den güncel veriyi al
                 loadAdminMarkers();
                 editModal.style.display = 'none';
                 document.getElementById('admin-modal').style.display = 'block';
