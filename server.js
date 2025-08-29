@@ -5,25 +5,25 @@ const fs = require('fs').promises;
 const cors = require('cors');
 const admin = require('firebase-admin');
 
-// Initialize Express
+// Express'i başlat
 const app = express();
 const upload = multer({ dest: 'uploads/' });
 
-// Initialize Firebase Admin SDK
+// Firebase Admin SDK'yı başlat
 const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
 admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
-    databaseURL: process.env.FIREBASE_DATABASE_URL // e.g., https://your-project-id.firebaseio.com
+    databaseURL: process.env.FIREBASE_DATABASE_URL
 });
 const db = admin.database();
 
 // Middleware
-app.use(cors()); // Enable CORS
-app.use(express.json()); // Parse JSON bodies
-app.use(express.static('.')); // Serve static files
-app.use('/uploads', express.static('uploads')); // Serve images
+app.use(cors()); // CORS'u etkinleştir
+app.use(express.json()); // JSON gövdelerini ayrıştır
+app.use(express.static('.')); // Statik dosyaları sun
+app.use('/uploads', express.static('uploads')); // Görselleri sun
 
-// Load admin credentials from environment variables
+// Admin kimlik bilgilerini ortam değişkenlerinden al
 const adminUsername = process.env.ADMIN_USERNAME;
 const adminPasswordHash = process.env.ADMIN_PASSWORD_HASH;
 
@@ -34,10 +34,10 @@ const admins = [
     }
 ];
 
-// In-memory storage for classes (replace with Firebase if needed)
+// Sınıflar için geçici bellek (gerekirse Firebase'a taşıyın)
 let classes = [];
 
-// Image upload endpoint
+// Görsel yükleme endpoint'i
 app.post('/upload', upload.single('image'), async (req, res) => {
     try {
         const file = req.file;
@@ -54,10 +54,11 @@ app.post('/upload', upload.single('image'), async (req, res) => {
     }
 });
 
-// Login endpoint
+// Giriş endpoint'i
 app.post('/api/login', async (req, res) => {
     const { username, password } = req.body;
     try {
+        // Şifre frontend'den hash'lenmiş geliyor, doğrudan karşılaştır
         const admin = admins.find(a => a.username === username && a.password === password);
         if (admin) {
             res.json({ success: true });
@@ -70,12 +71,12 @@ app.post('/api/login', async (req, res) => {
     }
 });
 
-// Logout endpoint (placeholder, as sessions are not implemented)
+// Çıkış endpoint'i (oturumlar uygulanmadığı için placeholder)
 app.post('/api/logout', (req, res) => {
     res.json({ success: true });
 });
 
-// Markers endpoints
+// Marker endpoint'leri
 app.get('/api/markers', async (req, res) => {
     try {
         const snapshot = await db.ref('markers').once('value');
@@ -91,7 +92,7 @@ app.post('/api/markers', async (req, res) => {
     try {
         const markerData = req.body;
         const newMarkerRef = db.ref('markers').push();
-        markerData.id = newMarkerRef.key; // Use Firebase-generated key as ID
+        markerData.id = newMarkerRef.key; // Firebase tarafından üretilen anahtarı ID olarak kullan
         await newMarkerRef.set(markerData);
         res.json({ success: true, marker: markerData });
     } catch (error) {
@@ -111,7 +112,7 @@ app.delete('/api/markers/:id', async (req, res) => {
     }
 });
 
-// Classes endpoints
+// Sınıf endpoint'leri
 app.get('/api/classes', async (req, res) => {
     try {
         const snapshot = await db.ref('classes').once('value');
@@ -148,7 +149,7 @@ app.delete('/api/classes/:name', async (req, res) => {
         const classKey = Object.keys(classesData).find(key => classesData[key] === className);
         if (classKey) {
             await db.ref(`classes/${classKey}`).remove();
-            // Remove markers associated with the class
+            // İlgili markerları sil
             const markersSnapshot = await db.ref('markers').once('value');
             const markersData = markersSnapshot.val() || {};
             for (const markerId in markersData) {
