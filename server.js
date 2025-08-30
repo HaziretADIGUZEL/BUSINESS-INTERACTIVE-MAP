@@ -11,7 +11,6 @@ const app = express();
 const upload = multer({ dest: 'uploads/' });
 
 // Firebase Admin SDK'yı başlat
-// Render'da FIREBASE_SERVICE_ACCOUNT bir JSON string olarak tanımlanmalı
 const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
 admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
@@ -20,19 +19,19 @@ admin.initializeApp({
 const db = admin.database();
 
 // Middleware
-app.use(cors()); // CORS, Render'da frontend'in backend URL'sine erişimini sağlar
+app.use(cors()); // CORS, frontend'in Render URL'sine erişimini sağlar
 app.use(express.json()); // JSON gövdelerini ayrıştır
-app.use(express.static('.')); // Statik dosyaları sun
-app.use('/uploads', express.static('uploads')); // Görselleri sun (Render'da geçici dosya sistemi)
+app.use(express.static('.')); // Statik dosyaları sun (plan.svg burada)
+app.use('/uploads', express.static('uploads')); // Görselleri sun
 
-// JWT secret (Render'da ortam değişkeni olarak tanımlayın)
-const jwtSecret = process.env.JWT_SECRET; // Varsayılan kaldırıldı, mutlaka tanımlayın
+// JWT secret (Render'da ortam değişkeni)
+const jwtSecret = process.env.JWT_SECRET;
 if (!jwtSecret) {
     console.error('JWT_SECRET ortam değişkeni tanımlı değil!');
     process.exit(1);
 }
 
-// Admin kimlik bilgileri (Render'da ortam değişkenleri)
+// Admin kimlik bilgileri
 const adminUsername = process.env.ADMIN_USERNAME;
 const adminPasswordHash = process.env.ADMIN_PASSWORD_HASH;
 if (!adminUsername || !adminPasswordHash) {
@@ -61,7 +60,6 @@ const authenticateToken = (req, res, next) => {
 };
 
 // Görsel yükleme endpoint'i
-// Not: Render'da uploads klasörü geçici. Kalıcı depolama için S3 veya benzeri kullanın
 app.post('/upload', upload.single('image'), async (req, res) => {
     try {
         const file = req.file;
@@ -78,7 +76,7 @@ app.post('/upload', upload.single('image'), async (req, res) => {
     }
 });
 
-// Giriş endpoint'i (token üret)
+// Giriş endpoint'i
 app.post('/api/login', async (req, res) => {
     const { username, password } = req.body;
     try {
@@ -95,12 +93,12 @@ app.post('/api/login', async (req, res) => {
     }
 });
 
-// Çıkış endpoint'i (frontend token'ı siler)
+// Çıkış endpoint'i
 app.post('/api/logout', (req, res) => {
     res.json({ success: true });
 });
 
-// Marker endpoint'leri (auth ile koru)
+// Marker endpoint'leri
 app.get('/api/markers', authenticateToken, async (req, res) => {
     try {
         const snapshot = await db.ref('markers').once('value');
@@ -116,7 +114,7 @@ app.post('/api/markers', authenticateToken, async (req, res) => {
     try {
         const markerData = req.body;
         const newMarkerRef = db.ref('markers').push();
-        markerData.id = newMarkerRef.key; // Firebase tarafından üretilen anahtarı ID olarak kullan
+        markerData.id = newMarkerRef.key;
         await newMarkerRef.set(markerData);
         res.json({ success: true, marker: markerData });
     } catch (error) {
@@ -136,7 +134,7 @@ app.delete('/api/markers/:id', authenticateToken, async (req, res) => {
     }
 });
 
-// Sınıf endpoint'leri (auth ile koru)
+// Sınıf endpoint'leri
 app.get('/api/classes', authenticateToken, async (req, res) => {
     try {
         const snapshot = await db.ref('classes').once('value');
@@ -173,7 +171,6 @@ app.delete('/api/classes/:name', authenticateToken, async (req, res) => {
         const classKey = Object.keys(classesData).find(key => classesData[key] === className);
         if (classKey) {
             await db.ref(`classes/${classKey}`).remove();
-            // İlgili markerları sil
             const markersSnapshot = await db.ref('markers').once('value');
             const markersData = markersSnapshot.val() || {};
             for (const markerId in markersData) {
