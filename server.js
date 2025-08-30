@@ -19,25 +19,15 @@ admin.initializeApp({
 const db = admin.database();
 
 // Middleware
-app.use(cors());
-app.use(express.json());
-app.use(express.static('.'));
-app.use('/uploads', express.static('uploads'));
+app.use(cors()); // CORS'u etkinleştir
+app.use(express.json()); // JSON gövdelerini ayrıştır
+app.use(express.static('.')); // Statik dosyaları sun
+app.use('/uploads', express.static('uploads')); // Görselleri sun
 
-// JWT secret
-const jwtSecret = process.env.JWT_SECRET;
-if (!jwtSecret) {
-    console.error('JWT_SECRET ortam değişkeni tanımlı değil!');
-    process.exit(1);
-}
-
-// Admin kimlik bilgileri
+// Admin kimlik bilgilerini ortam değişkenlerinden al
 const adminUsername = process.env.ADMIN_USERNAME;
 const adminPasswordHash = process.env.ADMIN_PASSWORD_HASH;
-if (!adminUsername || !adminPasswordHash) {
-    console.error('ADMIN_USERNAME veya ADMIN_PASSWORD_HASH tanımlı değil!');
-    process.exit(1);
-}
+const jwtSecret = process.env.JWT_SECRET;
 
 const admins = [
     {
@@ -46,37 +36,37 @@ const admins = [
     }
 ];
 
-// Auth middleware: Token doğrula
-const authenticateToken = (req, res, next) => {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
-    if (!token) {
-        console.log('Token eksik:', req.path);
-        return res.status(401).json({ success: false, message: 'Token eksik' });
-    }
+// Sınıflar için geçici bellek (gerekirse Firebase'a taşıyın)
+let classes = [];
 
-    jwt.verify(token, jwtSecret, (err, user) => {
-        if (err) {
-            console.log('Geçersiz token:', err.message, req.path);
-            return res.status(403).json({ success: false, message: 'Geçersiz veya süresi dolmuş token' });
-        }
-        req.user = user;
-        next();
-    });
+// JWT doğrulaması yapan middleware
+const authenticateJWT = (req, res, next) => {
+    const authHeader = req.headers.authorization;
+    if (authHeader) {
+        const token = authHeader.split(' ')[1];
+        jwt.verify(token, jwtSecret, (err, user) => {
+            if (err) {
+                console.error('JWT doğrulama hatası:', err);
+                return res.status(403).json({ success: false, message: 'Geçersiz veya süresi dolmuş token.' });
+            }
+            req.user = user;
+            next();
+        });
+    } else {
+        res.status(401).json({ success: false, message: 'Erişim için token gerekli.' });
+    }
 };
 
-// Görsel yükleme endpoint'i (admin korumalı)
-app.post('/upload', authenticateToken, upload.single('image'), async (req, res) => {
+// Görsel yükleme endpoint'i
+app.post('/upload', upload.single('image'), authenticateJWT, async (req, res) => {
     try {
         const file = req.file;
         if (!file) {
-            console.log('Dosya seçilmedi:', req.path);
             return res.status(400).json({ error: 'Dosya seçilmedi.' });
         }
         const newPath = path.join('uploads', `${Date.now()}_${file.originalname}`);
         await fs.rename(file.path, newPath);
         const url = `/uploads/${path.basename(newPath)}`;
-        console.log('Görsel yüklendi:', url);
         res.json({ url });
     } catch (error) {
         console.error('Yükleme hatası:', error);
@@ -87,26 +77,22 @@ app.post('/upload', authenticateToken, upload.single('image'), async (req, res) 
 // Giriş endpoint'i
 app.post('/api/login', async (req, res) => {
     const { username, password } = req.body;
-    console.log('Giriş denemesi:', { username, receivedPassword: password });
     try {
         const admin = admins.find(a => a.username === username && a.password === password);
         if (admin) {
             const token = jwt.sign({ username: admin.username }, jwtSecret, { expiresIn: '1h' });
-            console.log('Giriş başarılı, token üretildi:', token);
             res.json({ success: true, token });
         } else {
-            console.log('Giriş başarısız: Kullanıcı adı veya şifre yanlış');
             res.status(401).json({ success: false, message: 'Kullanıcı adı veya şifre yanlış!' });
         }
     } catch (error) {
-        console.error('Login endpoint hatası:', error);
+        console.error('Login hatası:', error);
         res.status(500).json({ success: false, message: 'Sunucu hatası.' });
     }
 });
 
-// Çıkış endpoint'i
+// Çıkış endpoint'i (oturumlar uygulanmadığı için placeholder)
 app.post('/api/logout', (req, res) => {
-    console.log('Çıkış isteği alındı');
     res.json({ success: true });
 });
 
@@ -115,7 +101,6 @@ app.get('/api/markers', async (req, res) => {
     try {
         const snapshot = await db.ref('markers').once('value');
         const markers = snapshot.val() ? Object.values(snapshot.val()) : [];
-        console.log('Markerlar yüklendi, toplam:', markers.length);
         res.json(markers);
     } catch (error) {
         console.error('Marker yükleme hatası:', error);
@@ -123,13 +108,12 @@ app.get('/api/markers', async (req, res) => {
     }
 });
 
-app.post('/api/markers', authenticateToken, async (req, res) => {
+app.post('/api/markers', authenticateJWT, async (req, res) => {
     try {
         const markerData = req.body;
         const newMarkerRef = db.ref('markers').push();
-        markerData.id = newMarkerRef.key;
+        markerData.id = newMarkerRef.key; // Firebase tarafından üretilen anahtarı ID olarak kullan
         await newMarkerRef.set(markerData);
-        console.log('Marker kaydedildi:', markerData.id);
         res.json({ success: true, marker: markerData });
     } catch (error) {
         console.error('Marker kaydetme hatası:', error);
@@ -137,11 +121,10 @@ app.post('/api/markers', authenticateToken, async (req, res) => {
     }
 });
 
-app.delete('/api/markers/:id', authenticateToken, async (req, res) => {
+app.delete('/api/markers/:id', authenticateJWT, async (req, res) => {
     try {
         const markerId = req.params.id;
         await db.ref(`markers/${markerId}`).remove();
-        console.log('Marker silindi:', markerId);
         res.json({ success: true });
     } catch (error) {
         console.error('Marker silme hatası:', error);
@@ -154,7 +137,6 @@ app.get('/api/classes', async (req, res) => {
     try {
         const snapshot = await db.ref('classes').once('value');
         const classesData = snapshot.val() ? Object.values(snapshot.val()) : [];
-        console.log('Sınıflar yüklendi, toplam:', classesData.length);
         res.json(classesData);
     } catch (error) {
         console.error('Sınıf yükleme hatası:', error);
@@ -162,17 +144,15 @@ app.get('/api/classes', async (req, res) => {
     }
 });
 
-app.post('/api/classes', authenticateToken, async (req, res) => {
+app.post('/api/classes', authenticateJWT, async (req, res) => {
     try {
         const { name } = req.body;
         const snapshot = await db.ref('classes').once('value');
         const classesData = snapshot.val() ? Object.values(snapshot.val()) : [];
         if (name && !classesData.includes(name)) {
             await db.ref('classes').push(name);
-            console.log('Sınıf eklendi:', name);
             res.json({ success: true });
         } else {
-            console.log('Geçersiz veya mevcut sınıf adı:', name);
             res.status(400).json({ success: false, error: 'Geçersiz veya mevcut sınıf adı.' });
         }
     } catch (error) {
@@ -181,7 +161,7 @@ app.post('/api/classes', authenticateToken, async (req, res) => {
     }
 });
 
-app.delete('/api/classes/:name', authenticateToken, async (req, res) => {
+app.delete('/api/classes/:name', authenticateJWT, async (req, res) => {
     try {
         const className = req.params.name;
         const snapshot = await db.ref('classes').once('value');
@@ -189,6 +169,7 @@ app.delete('/api/classes/:name', authenticateToken, async (req, res) => {
         const classKey = Object.keys(classesData).find(key => classesData[key] === className);
         if (classKey) {
             await db.ref(`classes/${classKey}`).remove();
+            // İlgili markerları sil
             const markersSnapshot = await db.ref('markers').once('value');
             const markersData = markersSnapshot.val() || {};
             for (const markerId in markersData) {
@@ -196,10 +177,8 @@ app.delete('/api/classes/:name', authenticateToken, async (req, res) => {
                     await db.ref(`markers/${markerId}`).remove();
                 }
             }
-            console.log('Sınıf silindi:', className);
             res.json({ success: true });
         } else {
-            console.log('Sınıf bulunamadı:', className);
             res.status(404).json({ success: false, error: 'Sınıf bulunamadı.' });
         }
     } catch (error) {
