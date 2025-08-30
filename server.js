@@ -19,25 +19,14 @@ admin.initializeApp({
 const db = admin.database();
 
 // Middleware
-app.use(cors());
-app.use(express.json());
-app.use(express.static('.'));
-app.use('/uploads', express.static('uploads'));
+app.use(cors()); // CORS'u etkinleştir
+app.use(express.json()); // JSON gövdelerini ayrıştır
+app.use(express.static('.')); // Statik dosyaları sun
+app.use('/uploads', express.static('uploads')); // Görselleri sun
 
-// JWT secret
-const jwtSecret = process.env.JWT_SECRET;
-if (!jwtSecret) {
-    console.error('JWT_SECRET ortam değişkeni tanımlı değil!');
-    process.exit(1);
-}
-
-// Admin kimlik bilgileri
+// Admin kimlik bilgilerini ortam değişkenlerinden al
 const adminUsername = process.env.ADMIN_USERNAME;
 const adminPasswordHash = process.env.ADMIN_PASSWORD_HASH;
-if (!adminUsername || !adminPasswordHash) {
-    console.error('ADMIN_USERNAME veya ADMIN_PASSWORD_HASH tanımlı değil!');
-    process.exit(1);
-}
 
 const admins = [
     {
@@ -46,21 +35,24 @@ const admins = [
     }
 ];
 
-// Auth middleware: Token doğrula (sadece yazma/değiştirme için kullanılacak)
+// JWT secret (gerçekte env variable yapın)
+const jwtSecret = process.env.JWT_SECRET || 'your_jwt_secret_key'; // Güvenli bir secret kullanın
+
+// Auth middleware: Token doğrula
 const authenticateToken = (req, res, next) => {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
     if (!token) return res.status(401).json({ success: false, message: 'Token eksik' });
 
     jwt.verify(token, jwtSecret, (err, user) => {
-        if (err) return res.status(403).json({ success: false, message: 'Geçersiz veya süresi dolmuş token' });
+        if (err) return res.status(403).json({ success: false, message: 'Geçersiz token' });
         req.user = user;
         next();
     });
 };
 
-// Görsel yükleme endpoint'i (admin korumalı yapıyoruz, çünkü yazma işlemi)
-app.post('/upload', authenticateToken, upload.single('image'), async (req, res) => {
+// Görsel yükleme endpoint'i
+app.post('/upload', upload.single('image'), async (req, res) => {
     try {
         const file = req.file;
         if (!file) {
@@ -82,10 +74,10 @@ app.post('/api/login', async (req, res) => {
     try {
         const admin = admins.find(a => a.username === username && a.password === password);
         if (admin) {
-            const token = jwt.sign({ username: admin.username }, jwtSecret, { expiresIn: '1h' });
+            const token = jwt.sign({ username: admin.username }, jwtSecret, { expiresIn: '1h' }); // Token üret
             res.json({ success: true, token });
         } else {
-            res.status(401).json({ success: false, message: 'Kullanıcı adı veya şifre yanlış!' });
+            res.json({ success: false, message: 'Kullanıcı adı veya şifre yanlış!' });
         }
     } catch (error) {
         console.error('Login hatası:', error);
@@ -93,13 +85,13 @@ app.post('/api/login', async (req, res) => {
     }
 });
 
-// Çıkış endpoint'i
+// Çıkış endpoint'i (oturumlar uygulanmadığı için placeholder)
 app.post('/api/logout', (req, res) => {
     res.json({ success: true });
 });
 
 // Marker endpoint'leri
-app.get('/api/markers', async (req, res) => { // Okuma herkese açık
+app.get('/api/markers', async (req, res) => {
     try {
         const snapshot = await db.ref('markers').once('value');
         const markers = snapshot.val() ? Object.values(snapshot.val()) : [];
@@ -110,11 +102,11 @@ app.get('/api/markers', async (req, res) => { // Okuma herkese açık
     }
 });
 
-app.post('/api/markers', authenticateToken, async (req, res) => { // Yazma admin korumalı
+app.post('/api/markers', authenticateToken, async (req, res) => {
     try {
         const markerData = req.body;
         const newMarkerRef = db.ref('markers').push();
-        markerData.id = newMarkerRef.key;
+        markerData.id = newMarkerRef.key; // Firebase tarafından üretilen anahtarı ID olarak kullan
         await newMarkerRef.set(markerData);
         res.json({ success: true, marker: markerData });
     } catch (error) {
@@ -123,7 +115,7 @@ app.post('/api/markers', authenticateToken, async (req, res) => { // Yazma admin
     }
 });
 
-app.delete('/api/markers/:id', authenticateToken, async (req, res) => { // Silme admin korumalı
+app.delete('/api/markers/:id', authenticateToken, async (req, res) => {
     try {
         const markerId = req.params.id;
         await db.ref(`markers/${markerId}`).remove();
@@ -135,7 +127,7 @@ app.delete('/api/markers/:id', authenticateToken, async (req, res) => { // Silme
 });
 
 // Sınıf endpoint'leri
-app.get('/api/classes', async (req, res) => { // Okuma herkese açık
+app.get('/api/classes', async (req, res) => {
     try {
         const snapshot = await db.ref('classes').once('value');
         const classesData = snapshot.val() ? Object.values(snapshot.val()) : [];
@@ -146,7 +138,7 @@ app.get('/api/classes', async (req, res) => { // Okuma herkese açık
     }
 });
 
-app.post('/api/classes', authenticateToken, async (req, res) => { // Yazma admin korumalı
+app.post('/api/classes', authenticateToken, async (req, res) => {
     try {
         const { name } = req.body;
         const snapshot = await db.ref('classes').once('value');
@@ -163,7 +155,7 @@ app.post('/api/classes', authenticateToken, async (req, res) => { // Yazma admin
     }
 });
 
-app.delete('/api/classes/:name', authenticateToken, async (req, res) => { // Silme admin korumalı
+app.delete('/api/classes/:name', authenticateToken, async (req, res) => {
     try {
         const className = req.params.name;
         const snapshot = await db.ref('classes').once('value');
@@ -171,6 +163,7 @@ app.delete('/api/classes/:name', authenticateToken, async (req, res) => { // Sil
         const classKey = Object.keys(classesData).find(key => classesData[key] === className);
         if (classKey) {
             await db.ref(`classes/${classKey}`).remove();
+            // İlgili markerları sil
             const markersSnapshot = await db.ref('markers').once('value');
             const markersData = markersSnapshot.val() || {};
             for (const markerId in markersData) {
