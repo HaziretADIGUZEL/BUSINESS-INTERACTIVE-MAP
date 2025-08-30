@@ -19,12 +19,12 @@ admin.initializeApp({
 const db = admin.database();
 
 // Middleware
-app.use(cors()); // CORS, frontend'in Render URL'sine erişimini sağlar
-app.use(express.json()); // JSON gövdelerini ayrıştır
-app.use(express.static('.')); // Statik dosyaları sun (plan.svg burada)
-app.use('/uploads', express.static('uploads')); // Görselleri sun
+app.use(cors());
+app.use(express.json());
+app.use(express.static('.'));
+app.use('/uploads', express.static('uploads'));
 
-// JWT secret (Render'da ortam değişkeni)
+// JWT secret
 const jwtSecret = process.env.JWT_SECRET;
 if (!jwtSecret) {
     console.error('JWT_SECRET ortam değişkeni tanımlı değil!');
@@ -46,7 +46,7 @@ const admins = [
     }
 ];
 
-// Auth middleware: Token doğrula
+// Auth middleware: Token doğrula (sadece yazma/değiştirme için kullanılacak)
 const authenticateToken = (req, res, next) => {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
@@ -59,8 +59,8 @@ const authenticateToken = (req, res, next) => {
     });
 };
 
-// Görsel yükleme endpoint'i
-app.post('/upload', upload.single('image'), async (req, res) => {
+// Görsel yükleme endpoint'i (admin korumalı yapıyoruz, çünkü yazma işlemi)
+app.post('/upload', authenticateToken, upload.single('image'), async (req, res) => {
     try {
         const file = req.file;
         if (!file) {
@@ -99,7 +99,7 @@ app.post('/api/logout', (req, res) => {
 });
 
 // Marker endpoint'leri
-app.get('/api/markers', authenticateToken, async (req, res) => {
+app.get('/api/markers', async (req, res) => { // Okuma herkese açık
     try {
         const snapshot = await db.ref('markers').once('value');
         const markers = snapshot.val() ? Object.values(snapshot.val()) : [];
@@ -110,7 +110,7 @@ app.get('/api/markers', authenticateToken, async (req, res) => {
     }
 });
 
-app.post('/api/markers', authenticateToken, async (req, res) => {
+app.post('/api/markers', authenticateToken, async (req, res) => { // Yazma admin korumalı
     try {
         const markerData = req.body;
         const newMarkerRef = db.ref('markers').push();
@@ -123,7 +123,7 @@ app.post('/api/markers', authenticateToken, async (req, res) => {
     }
 });
 
-app.delete('/api/markers/:id', authenticateToken, async (req, res) => {
+app.delete('/api/markers/:id', authenticateToken, async (req, res) => { // Silme admin korumalı
     try {
         const markerId = req.params.id;
         await db.ref(`markers/${markerId}`).remove();
@@ -135,7 +135,7 @@ app.delete('/api/markers/:id', authenticateToken, async (req, res) => {
 });
 
 // Sınıf endpoint'leri
-app.get('/api/classes', authenticateToken, async (req, res) => {
+app.get('/api/classes', async (req, res) => { // Okuma herkese açık
     try {
         const snapshot = await db.ref('classes').once('value');
         const classesData = snapshot.val() ? Object.values(snapshot.val()) : [];
@@ -146,7 +146,7 @@ app.get('/api/classes', authenticateToken, async (req, res) => {
     }
 });
 
-app.post('/api/classes', authenticateToken, async (req, res) => {
+app.post('/api/classes', authenticateToken, async (req, res) => { // Yazma admin korumalı
     try {
         const { name } = req.body;
         const snapshot = await db.ref('classes').once('value');
@@ -163,7 +163,7 @@ app.post('/api/classes', authenticateToken, async (req, res) => {
     }
 });
 
-app.delete('/api/classes/:name', authenticateToken, async (req, res) => {
+app.delete('/api/classes/:name', authenticateToken, async (req, res) => { // Silme admin korumalı
     try {
         const className = req.params.name;
         const snapshot = await db.ref('classes').once('value');
