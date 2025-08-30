@@ -25,19 +25,8 @@ app.use(express.static('.')); // Statik dosyaları sun
 app.use('/uploads', express.static('uploads')); // Görselleri sun
 
 // Admin kimlik bilgilerini ortam değişkenlerinden al
-const adminUsername = process.env.ADMIN_USERNAME;
-const adminPasswordHash = process.env.ADMIN_PASSWORD_HASH;
+const admins = JSON.parse(process.env.ADMINS_DATA || '[]'); // JSON stringini parse ederek admin listesini al
 const jwtSecret = process.env.JWT_SECRET;
-
-const admins = [
-    {
-        username: adminUsername,
-        password: adminPasswordHash
-    }
-];
-
-// Sınıflar için geçici bellek (gerekirse Firebase'a taşıyın)
-let classes = [];
 
 // JWT doğrulaması yapan middleware
 const authenticateJWT = (req, res, next) => {
