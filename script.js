@@ -1,8 +1,5 @@
 // Firebase yapılandırması kaldırıldı, çünkü backend üzerinden iletişim kuruyoruz
 
-// Render backend URL'si (Render'da kendi URL'nizi buraya koyun veya ortam değişkeni kullanın)
-const BASE_URL = process.env.NODE_ENV === 'production' ? 'https://your-app.onrender.com' : 'http://localhost:8000';
-
 async function hashPassword(password) {
     const encoder = new TextEncoder();
     const data = encoder.encode(password);
@@ -93,36 +90,24 @@ function initApp() {
     var activeFilters = new Set();
     var inversionActive = false;
 
-    // Token'ı localStorage'dan al
-    function getAuthToken() {
-        return localStorage.getItem('authToken');
-    }
-
-    // Backend ile marker ve sınıf verileri (auth header ekle)
+    // Backend ile marker ve sınıf verileri
     async function loadMarkersFromDB() {
         try {
-            const token = getAuthToken();
-            const response = await fetch(`${BASE_URL}/api/markers`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
+            const response = await fetch('/api/markers');
             if (!response.ok) throw new Error('Markerlar yüklenemedi: ' + response.status);
             markersData = await response.json();
             loadMarkers();
         } catch (error) {
             console.error('Marker yükleme hatası:', error);
-            alert('Markerlar yüklenemedi. Lütfen giriş yapın veya bağlantıyı kontrol edin.');
+            alert('Markerlar yüklenemedi.');
         }
     }
 
     async function saveMarkerToDB(markerData) {
         try {
-            const token = getAuthToken();
-            const response = await fetch(`${BASE_URL}/api/markers`, {
+            const response = await fetch('/api/markers', {
                 method: 'POST',
-                headers: { 
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(markerData)
             });
             const result = await response.json();
@@ -136,10 +121,8 @@ function initApp() {
 
     async function deleteMarkerFromDB(markerId) {
         try {
-            const token = getAuthToken();
-            const response = await fetch(`${BASE_URL}/api/markers/${markerId}`, {
-                method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${token}` }
+            const response = await fetch(`/api/markers/${markerId}`, {
+                method: 'DELETE'
             });
             const result = await response.json();
             if (!result.success) throw new Error(result.error || 'Marker silinemedi.');
@@ -152,28 +135,21 @@ function initApp() {
 
     async function loadClassesFromDB() {
         try {
-            const token = getAuthToken();
-            const response = await fetch(`${BASE_URL}/api/classes`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
+            const response = await fetch('/api/classes');
             if (!response.ok) throw new Error('Sınıflar yüklenemedi: ' + response.status);
             classesData = await response.json();
             loadClassList();
         } catch (error) {
             console.error('Sınıf yükleme hatası:', error);
-            alert('Sınıflar yüklenemedi. Lütfen giriş yapın veya bağlantıyı kontrol edin.');
+            alert('Sınıflar yüklenemedi.');
         }
     }
 
     async function saveClassToDB(className) {
         try {
-            const token = getAuthToken();
-            const response = await fetch(`${BASE_URL}/api/classes`, {
+            const response = await fetch('/api/classes', {
                 method: 'POST',
-                headers: { 
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ name: className })
             });
             const result = await response.json();
@@ -187,10 +163,8 @@ function initApp() {
 
     async function deleteClassFromDB(className) {
         try {
-            const token = getAuthToken();
-            const response = await fetch(`${BASE_URL}/api/classes/${encodeURIComponent(className)}`, {
-                method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${token}` }
+            const response = await fetch(`/api/classes/${encodeURIComponent(className)}`, {
+                method: 'DELETE'
             });
             const result = await response.json();
             if (!result.success) throw new Error(result.error || 'Sınıf silinemedi.');
@@ -228,7 +202,7 @@ function initApp() {
                 draggable: adminMode
             }).addTo(map);
 
-            marker.bindPopup(createPopupContent(markerData, index, false), {
+            marker.bindPopup(createPopupContent(markerData, index), {
                 autoPan: true,
                 autoPanPadding: [50, 50]
             });
@@ -256,7 +230,6 @@ function initApp() {
                 popup.options.offset = [0, isTop60Percent ? 40 : -40];
                 popup.options.autoPanPaddingTopLeft = L.point(50, isTop60Percent ? 200 : 50);
                 popup.options.autoPanPaddingBottomRight = L.point(50, isTop60Percent ? 50 : 200);
-                popup.setContent(createPopupContent(markerData, index, !isTop60Percent)); // Upside-down için parametre
                 marker.openPopup();
 
                 setTimeout(() => {
@@ -284,18 +257,16 @@ function initApp() {
         applyFilters();
     }
 
-    function createPopupContent(markerData, index, isUpsideDown) {
+    function createPopupContent(markerData, index) {
         var imagesHtml = markerData.images && markerData.images.length > 0
             ? `<div class="marker-images">${markerData.images.map((img, i) => `<img src="${img}" alt="Image ${i}" onclick="openImageViewer(${index}, ${i})">`).join('')}</div>`
             : '<img src="https://via.placeholder.com/150" alt="No image" style="width:80px;height:80px;object-fit:cover;">';
         var adminEditButton = adminMode ? `<button class="edit-button" onclick="editMarker(${index})">Düzenle</button>` : '';
         return `
-            <div class="leaflet-popup-content ${isUpsideDown ? 'upside-down' : ''}">
-                <h2>${markerData.title}</h2>
-                <p>${markerData.description}</p>
-                ${imagesHtml}
-                ${adminEditButton}
-            </div>
+            <h2>${markerData.title}</h2>
+            <p>${markerData.description}</p>
+            ${imagesHtml}
+            ${adminEditButton}
         `;
     }
 
@@ -404,51 +375,35 @@ function initApp() {
         });
 
         if (matchingMarkers.length > 0) {
-            map.flyTo(matchingMarkers[0].marker.getLatLng(), 1);
-        }
-    }
-
-    if (searchInput) {
-        searchInput.addEventListener('input', function() {
-            showSuggestions(this.value);
-        });
-    }
-
-    if (searchButton) {
-        searchButton.addEventListener('click', function() {
-            performSearch(searchInput.value);
-        });
-    }
-
-    // Login formu için token saklama (admin girişi)
-    var loginForm = document.getElementById('login-form');
-    if (loginForm) {
-        loginForm.onsubmit = async function(ev) {
-            ev.preventDefault();
-            const username = document.querySelector('#login-form input[type="text"]').value;
-            const password = document.querySelector('#login-form input[type="password"]').value;
-            const hashedPassword = await hashPassword(password);
-            try {
-                const response = await fetch(`${BASE_URL}/api/login`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username, password: hashedPassword })
+ ...(truncated 11874 characters)...
+                markersData.forEach(async marker => {
+                    if (marker.class === oldName) {
+                        marker.class = newName.trim();
+                        await deleteMarkerFromDB(marker.id);
+                        await saveMarkerToDB(marker);
+                    }
                 });
-                const result = await response.json();
-                if (result.success) {
-                    localStorage.setItem('authToken', result.token); // Token'ı sakla
-                    adminMode = true;
-                    document.getElementById('admin-modal').style.display = 'block'; // Admin panelini aç
-                    alert('Giriş başarılı!');
-                } else {
-                    alert('Hatalı kullanıcı adı veya şifre.');
-                }
+                loadClassList();
+                loadMarkersFromDB();
             } catch (error) {
-                console.error('Giriş hatası:', error);
-                alert('Giriş yapılamadı. Lütfen bağlantıyı kontrol edin.');
+                alert('Sınıf güncellenemedi.');
             }
-        };
-    }
+        }
+    };
+    
+    // Sınıf Silme
+    window.deleteClass = async function(index) {
+        if (confirm('Bu sınıfı ve ona atanmış tüm markerları silmek istediğinizden emin misiniz?')) {
+            const classToDelete = classesData[index];
+            try {
+                await deleteClassFromDB(classToDelete);
+                loadClassList();
+                loadMarkers();
+            } catch (error) {
+                alert('Sınıf silinemedi.');
+            }
+        }
+    };
 
     // Yeni Marker Ekle Butonu
     var addNewBtn = document.getElementById('add-new-marker');
@@ -516,7 +471,7 @@ function initApp() {
                 var formData = new FormData();
                 formData.append('image', file);
                 try {
-                    const response = await fetch(`${BASE_URL}/upload`, {
+                    const response = await fetch('/upload', {
                         method: 'POST',
                         body: formData
                     });
