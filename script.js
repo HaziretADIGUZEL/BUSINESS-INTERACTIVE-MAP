@@ -60,7 +60,7 @@ function initApp() {
     try {
         map = L.map('map', {
             crs: L.CRS.Simple,
-            minZoom: -3,
+            minZoom: -4,
             maxZoom: 3,
             maxBoundsViscosity: 1.0
         });
@@ -95,7 +95,7 @@ function initApp() {
 
     // Haritayı ortala
     try {
-        map.setView([svgHeight / 2, svgWidth / 2], -3);
+        map.setView([svgHeight / 2, svgWidth / 2], -4);
         map.setMaxBounds(imageBounds);
         console.log('Harita ortalandı:', [svgHeight / 2, svgWidth / 2]);
     } catch (err) {
@@ -1086,3 +1086,4 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log('DOMContentLoaded tetiklendi');
     initApp();
 });
+
