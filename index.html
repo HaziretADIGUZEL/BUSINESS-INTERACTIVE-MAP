@@ -15,14 +15,24 @@
 <body>
     <div id="map"></div>
 
+    <!-- Mobilde menü butonu ve açılır menü -->
+    <div class="mobile-menu-wrapper">
+      <button id="mobile-menu-toggle">Menü</button>
+      <div id="mobile-menu-buttons" style="display:none; flex-direction:column; gap:8px; margin-top:8px;">
+        <button id="admin-toggle">Admin Modu</button>
+        <button id="show-admin-panel" style="display: none;">Marker Listesi</button>
+        <button id="manage-classes-btn" style="display: none;">Sınıf Yönetimi</button>
+        <button id="filter-toggle">Sınıflar Filtrele</button>
+      </div>
+    </div>
+
     <div class="search-container">
         <input type="text" id="search-input" placeholder="Ara">
         <button id="search-button">Ara</button>
         <ul id="search-suggestions" class="suggestions-list" style="display: none;"></ul>
     </div>
-    
+
     <div class="filter-container">
-        <button id="filter-toggle">Sınıflar Filtrele</button>
         <div id="filter-dropdown" class="filter-dropdown" style="display: none;">
             <label><input type="checkbox" id="hide-all-filters"> Hepsini Gizle</label>
             <div id="filter-options"></div>
@@ -33,11 +43,7 @@
         </div>
     </div>
 
-    <div class="admin-buttons">
-        <button id="admin-toggle">Admin Modu</button>
-        <button id="show-admin-panel" style="display: none;">Marker Listesi</button>
-        <button id="manage-classes-btn" style="display: none;">Sınıf Yönetimi</button>
-    </div>
+    <!-- ...existing code... -->
 
     <div id="login-modal" class="modal">
         <div class="modal-content">
