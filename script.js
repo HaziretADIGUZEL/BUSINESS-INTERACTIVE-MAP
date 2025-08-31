@@ -125,6 +125,7 @@ function initApp() {
             if (!response.ok) throw new Error('Markerlar yüklenemedi: ' + response.status);
             markersData = await response.json();
             loadMarkers();
+            loadAdminMarkers(); // Markerlar yüklendikten sonra admin listesini güncelle
         } catch (error) {
             console.error('Marker yükleme hatası:', error);
             alert('Markerlar yüklenemedi.');
@@ -897,7 +898,8 @@ function initApp() {
                         markersData[selectedMarkerIndex] = savedMarker; // Yerel veriyi güncelle
                     }
                     await loadMarkersFromDB(); // Backend'den güncel veriyi al
-                    loadAdminMarkers();
+                    // loadAdminMarkers() fonksiyonunu loadMarkersFromDB tamamlandıktan sonra çağırın
+                    setTimeout(loadAdminMarkers, 100); // Kısa bir gecikme ile çağırmak markerların güncellenmesini garanti eder
                     editModal.style.display = 'none';
                     document.getElementById('admin-modal').style.display = 'block';
                 } catch (error) {
