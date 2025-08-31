@@ -275,9 +275,20 @@ function initApp() {
 
             marker.on('dragend', async function(e) {
                 const newLatLng = [marker.getLatLng().lat, marker.getLatLng().lng];
+                var svgHeight = 7598.6665;
+                var svgWidth = 8020;
+                // Sınır kontrolü
+                if (
+                    newLatLng[0] < 0 || newLatLng[0] > svgHeight ||
+                    newLatLng[1] < 0 || newLatLng[1] > svgWidth
+                ) {
+                    alert('Seçilen konum SVG sınırları dışında! Marker taşınamaz.');
+                    // Marker'ı eski konumuna döndür
+                    marker.setLatLng([markersData[index].latLng[0], markersData[index].latLng[1]]);
+                    return;
+                }
                 const markerId = markersData[index].id;
                 const updatedData = { ...markersData[index], latLng: newLatLng };
-
                 try {
                     // Update the existing marker instead of deleting and recreating
                     await deleteMarkerFromDB(markerId);
