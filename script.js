@@ -60,7 +60,7 @@ function initApp() {
     try {
         map = L.map('map', {
             crs: L.CRS.Simple,
-            minZoom: -4,
+            minZoom: -3,
             maxZoom: 3,
             maxBoundsViscosity: 1.0
         });
@@ -75,7 +75,11 @@ function initApp() {
     var imageUrl = 'plan.svg';
     var svgHeight = 7598.6665;
     var svgWidth = 8020;
-    var imageBounds = [[0, 0], [svgHeight, svgWidth]];
+    
+    // Sağ sınırı 1000 birim genişlet
+    var extendedWidth = svgWidth + 1000;
+    var imageBounds = [[0, 0], [svgHeight, extendedWidth]];
+
     console.log('SVG yükleniyor:', imageUrl);
     try {
         var imageOverlay = L.imageOverlay(imageUrl, imageBounds).addTo(map);
@@ -95,7 +99,7 @@ function initApp() {
 
     // Haritayı ortala
     try {
-        map.setView([svgHeight / 2, svgWidth / 2], -4);
+        map.setView([svgHeight / 2, svgWidth / 2], -3);
         map.setMaxBounds(imageBounds);
         console.log('Harita ortalandı:', [svgHeight / 2, svgWidth / 2]);
     } catch (err) {
@@ -233,8 +237,7 @@ function initApp() {
             }).addTo(map);
 
             marker.bindPopup(createPopupContent(markerData, index), {
-                autoPan: true,
-                autoPanPadding: [50, 50]
+                autoPan: true
             });
 
             marker.on('click', function(e) {
@@ -252,16 +255,25 @@ function initApp() {
                     }));
                 }, 200);
 
+                var popup = marker.getPopup();
                 var point = map.latLngToContainerPoint(marker.getLatLng());
                 var mapHeight = map.getSize().y;
                 var isTop60Percent = point.y < mapHeight * 0.6;
+                
+                // Pop-up konumuna göre offset ve yön belirle
+                if (isTop60Percent) {
+                    popup.options.offset = [0, -40]; // Yukarı doğru çıkan pop-up'ın offset'i
+                    popup.options.className = '';
+                } else {
+                    popup.options.offset = [0, 40]; // Aşağı doğru çıkan pop-up'ın offset'i
+                    popup.options.className = 'leaflet-popup-bottom';
+                }
 
-                var popup = marker.getPopup();
-                popup.options.offset = [0, isTop60Percent ? 40 : -40];
-                popup.options.autoPanPaddingTopLeft = L.point(50, isTop60Percent ? 200 : 50);
-                popup.options.autoPanPaddingBottomRight = L.point(50, isTop60Percent ? 50 : 200);
+                popup.options.autoPanPaddingTopLeft = L.point(50, 50);
+                popup.options.autoPanPaddingBottomRight = L.point(50, 50);
+                
                 marker.openPopup();
-
+                
                 setTimeout(() => {
                     popup.update();
                 }, 0);
@@ -626,8 +638,6 @@ function initApp() {
             };
     
             btnDiv.appendChild(editBtn);
-            btnDiv.appendChild(deleteBtn);
-    
             li.appendChild(titleSpan);
             li.appendChild(btnDiv);
     
@@ -724,7 +734,7 @@ function initApp() {
     
     // Sınıf Silme
     window.deleteClass = async function(index) {
-        if (confirm('Bu sınıfı ve ona atanmış tüm markerları silmek istediğinizden emin misiniz?')) {
+        if (confirm('Bu sınıfı ve ona atanmış tüm markerları silmek istediğinizden emin misunuz?')) {
             const classToDelete = classesData[index];
             try {
                 await deleteClassFromDB(classToDelete);
@@ -1086,4 +1096,3 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log('DOMContentLoaded tetiklendi');
     initApp();
 });
-
