@@ -578,14 +578,58 @@ body {
     .suggestions-list {
         width: 200px;
     }
+    /* Arama barının altına admin ve filtre alanı */
+    .search-container {
+        position: static;
+        width: 100%;
+        margin-bottom: 10px;
+    }
     .filter-container {
-        left: 10px;
-        top: 50px;
+        position: static;
+        width: 100%;
+        margin-top: 10px;
         flex-direction: column;
         align-items: flex-start;
+        left: unset;
+        top: unset;
     }
     .filter-dropdown {
         left: 0;
+        top: 0;
+    }
+    .admin-buttons {
+        position: static;
+        width: 100%;
+        flex-direction: column;
+        gap: 10px;
+        margin-top: 10px;
+        margin-bottom: 10px;
+        right: unset;
+        top: unset;
+    }
+    /* Admin modunda sağdaki üç buton alt alta */
+    .admin-buttons.admin-active {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    #show-admin-panel,
+    #manage-classes-btn {
+        display: block !important;
+        margin-top: 5px;
+    }
+    #admin-toggle {
+        margin-bottom: 5px;
+    }
+    /* Modal boyutları mobilde daha küçük olsun */
+    .modal-content {
+        width: 98%;
+        max-width: 98vw;
+        padding: 10px;
+    }
+    .image-viewer-content {
+        width: 98vw;
+        max-width: 98vw;
+        height: 80vh;
     }
 }
 
