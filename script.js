@@ -75,11 +75,7 @@ function initApp() {
     var imageUrl = 'plan.svg';
     var svgHeight = 7598.6665;
     var svgWidth = 8020;
-    
-    // Sağ sınırı 1000 birim genişlet
-    var extendedWidth = svgWidth + 1000;
-    var imageBounds = [[0, 0], [svgHeight, extendedWidth]];
-
+    var imageBounds = [[0, 0], [svgHeight, svgWidth]];
     console.log('SVG yükleniyor:', imageUrl);
     try {
         var imageOverlay = L.imageOverlay(imageUrl, imageBounds).addTo(map);
@@ -131,7 +127,7 @@ function initApp() {
 
     async function saveMarkerToDB(markerData) {
         try {
-            const response = await authFetch('/api/markers', {
+            const response = await fetch('/api/markers', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(markerData)
@@ -147,7 +143,7 @@ function initApp() {
 
     async function deleteMarkerFromDB(markerId) {
         try {
-            const response = await authFetch(`/api/markers/${markerId}`, {
+            const response = await fetch(`/api/markers/${markerId}`, {
                 method: 'DELETE'
             });
             const result = await response.json();
@@ -173,7 +169,7 @@ function initApp() {
 
     async function saveClassToDB(className) {
         try {
-            const response = await authFetch('/api/classes', {
+            const response = await fetch('/api/classes', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ name: className })
@@ -189,7 +185,7 @@ function initApp() {
 
     async function deleteClassFromDB(className) {
         try {
-            const response = await authFetch(`/api/classes/${encodeURIComponent(className)}`, {
+            const response = await fetch(`/api/classes/${encodeURIComponent(className)}`, {
                 method: 'DELETE'
             });
             const result = await response.json();
@@ -210,14 +206,6 @@ function initApp() {
     loadMarkersFromDB();
     loadClassesFromDB();
 
-    // Admin modu durumunu kontrol et
-    if (authToken) {
-        adminMode = true;
-        document.getElementById('admin-toggle').textContent = 'Admin Modu Kapat';
-        document.getElementById('show-admin-panel').style.display = 'block';
-        document.getElementById('manage-classes-btn').style.display = 'block';
-    }
-
     function loadMarkers() {
         markerLayers.forEach(function(layer) {
             if (map.hasLayer(layer.marker)) {
@@ -237,7 +225,8 @@ function initApp() {
             }).addTo(map);
 
             marker.bindPopup(createPopupContent(markerData, index), {
-                autoPan: true
+                autoPan: true,
+                autoPanPadding: [50, 50]
             });
 
             marker.on('click', function(e) {
@@ -256,22 +245,6 @@ function initApp() {
                 }, 200);
 
                 var popup = marker.getPopup();
-                var point = map.latLngToContainerPoint(marker.getLatLng());
-                var mapHeight = map.getSize().y;
-                var isTop60Percent = point.y < mapHeight * 0.6;
-                
-                // Pop-up konumuna göre offset ve yön belirle
-                if (isTop60Percent) {
-                    popup.options.offset = [0, -40]; // Yukarı doğru çıkan pop-up'ın offset'i
-                    popup.options.className = '';
-                } else {
-                    popup.options.offset = [0, 40]; // Aşağı doğru çıkan pop-up'ın offset'i
-                    popup.options.className = 'leaflet-popup-bottom';
-                }
-
-                popup.options.autoPanPaddingTopLeft = L.point(50, 50);
-                popup.options.autoPanPaddingBottomRight = L.point(50, 50);
-                
                 marker.openPopup();
                 
                 setTimeout(() => {
@@ -285,7 +258,6 @@ function initApp() {
                 const updatedData = { ...markersData[index], latLng: newLatLng };
 
                 try {
-                    // Update the existing marker instead of deleting and recreating
                     await deleteMarkerFromDB(markerId);
                     await saveMarkerToDB(updatedData);
                     loadMarkersFromDB(); // Yeniden yükle
@@ -495,11 +467,9 @@ function initApp() {
                 if (loginModal) loginModal.querySelector('#login-error').textContent = '';
             } else {
                 adminMode = false;
-                adminToggle.textContent = 'Admin Modu';
+                adminToggle.textContent = 'Admin Modu Kapat';
                 if (showAdminPanelBtn) showAdminPanelBtn.style.display = 'none';
                 if (manageClassesBtn) manageClassesBtn.style.display = 'none';
-                localStorage.removeItem('authToken'); // Token'ı sil
-                authToken = null;
                 loadMarkers();
                 document.getElementById('admin-modal').style.display = 'none';
             }
@@ -576,8 +546,6 @@ function initApp() {
 
                 if (result.success) {
                     console.log('Giriş başarılı!');
-                    authToken = result.token; // Token'ı kaydet
-                    localStorage.setItem('authToken', authToken); // Local Storage'a kaydet
                     adminMode = true;
                     adminToggle.textContent = 'Admin Modu Kapat';
                     if (loginModal) loginModal.style.display = 'none';
@@ -638,6 +606,8 @@ function initApp() {
             };
     
             btnDiv.appendChild(editBtn);
+            btnDiv.appendChild(deleteBtn);
+    
             li.appendChild(titleSpan);
             li.appendChild(btnDiv);
     
@@ -710,20 +680,15 @@ function initApp() {
         if (newName && newName.trim() && !classesData.includes(newName.trim())) {
             const oldName = classesData[index];
             try {
-                // Delete old class first
                 await deleteClassFromDB(oldName);
-                
-                // Save new class
                 await saveClassToDB(newName.trim());
-
-                // Update markers with the new class name
-                for (const marker of markersData) {
+                markersData.forEach(async marker => {
                     if (marker.class === oldName) {
                         marker.class = newName.trim();
                         await deleteMarkerFromDB(marker.id);
                         await saveMarkerToDB(marker);
                     }
-                }
+                });
                 loadClassList();
                 loadMarkersFromDB();
             } catch (error) {
@@ -734,7 +699,7 @@ function initApp() {
     
     // Sınıf Silme
     window.deleteClass = async function(index) {
-        if (confirm('Bu sınıfı ve ona atanmış tüm markerları silmek istediğinizden emin misunuz?')) {
+        if (confirm('Bu sınıfı ve ona atanmış tüm markerları silmek istediğinizden emin misiniz?')) {
             const classToDelete = classesData[index];
             try {
                 await deleteClassFromDB(classToDelete);
@@ -796,7 +761,6 @@ function initApp() {
             if (url) {
                 tempImages.push(url);
                 updateImageList();
-                document.getElementById('image-url-input').value = '';
                 if (editModal) editModal.querySelector('#image-error').textContent = '';
             } else {
                 if (editModal) editModal.querySelector('#image-error').textContent = 'Lütfen geçerli bir URL girin.';
@@ -808,15 +772,11 @@ function initApp() {
     if (imageFileInput) {
         imageFileInput.addEventListener('change', async function(e) {
             var files = e.target.files;
-            if (files.length > 0) {
-                if (editModal) editModal.querySelector('#image-error').textContent = 'Görsel yükleniyor...';
-            }
-            
             for (let file of files) {
                 var formData = new FormData();
                 formData.append('image', file);
                 try {
-                    const response = await authFetch('/upload', {
+                    const response = await fetch('/upload', {
                         method: 'POST',
                         body: formData
                     });
