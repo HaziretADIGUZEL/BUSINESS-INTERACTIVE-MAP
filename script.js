@@ -75,6 +75,12 @@ function initApp() {
     var imageUrl = 'plan.svg';
     var svgHeight = 7598.6665;
     var svgWidth = 8020;
+    // Sınırları %20 genişlet
+    var padding = 0.2;
+    var paddedBounds = [
+        [-svgHeight * padding, -svgWidth * padding],
+        [svgHeight * (1 + padding), svgWidth * (1 + padding)]
+    ];
     var imageBounds = [[0, 0], [svgHeight, svgWidth]];
     console.log('SVG yükleniyor:', imageUrl);
     try {
@@ -96,7 +102,7 @@ function initApp() {
     // Haritayı ortala
     try {
         map.setView([svgHeight / 2, svgWidth / 2], -3);
-        map.setMaxBounds(imageBounds);
+        map.setMaxBounds(paddedBounds); // Genişletilmiş sınırları kullan
         console.log('Harita ortalandı:', [svgHeight / 2, svgWidth / 2]);
     } catch (err) {
         console.error('map.setView hatası:', err);
