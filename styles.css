@@ -2,6 +2,7 @@ body {
     margin: 0;
     padding: 0;
     font-family: Arial, sans-serif;
+    min-width: 1024px; /* Masaüstü görünümü için ekleyin */
 }
 
 #map {
