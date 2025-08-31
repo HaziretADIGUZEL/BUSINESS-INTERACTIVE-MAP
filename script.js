@@ -236,7 +236,9 @@ function initApp() {
                     iconSize: [20, 20],
                     html: ''
                 }),
-                draggable: adminMode
+                draggable: adminMode,
+                autoPan: true, // Marker sürüklenirken harita otomatik kayar
+                autoPanSpeed: 100 // Varsayılan: 10, daha yüksek değer daha hızlı kaydırır
             }).addTo(map);
 
             marker.bindPopup(createPopupContent(markerData, index), {
