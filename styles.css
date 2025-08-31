@@ -669,6 +669,18 @@ body {
     }
 }
 
+@media (min-width: 769px) {
+    .mobile-menu-wrapper {
+        display: none !important;
+    }
+    .admin-buttons {
+        display: flex !important;
+    }
+    .filter-container {
+        display: flex !important;
+    }
+}
+
 /* Sınıf Ekle butonu için stil */
 #class-form button[type="submit"] {
     background: #28a745;
