@@ -851,33 +851,48 @@ function initApp() {
 
         var form = document.getElementById('marker-form');
         if (!form) return;
-        form.onsubmit = async function(ev) {
-            ev.preventDefault();
-            var newData = {
-                latLng: document.getElementById('latlng-input').value.split(', ').map(Number),
-                title: document.getElementById('title-input').value,
-                description: document.getElementById('desc-input').value,
-                images: tempImages,
-                class: document.getElementById('class-select').value
-            };
-
-            try {
-                if (selectedMarkerIndex === -1) {
-                    await saveMarkerToDB(newData);
-                } else {
-                    newData.id = markersData[selectedMarkerIndex].id;
-                    await deleteMarkerFromDB(newData.id);
-                    const savedMarker = await saveMarkerToDB(newData);
-                    markersData[selectedMarkerIndex] = savedMarker; // Yerel veriyi güncelle
+            form.onsubmit = async function(ev) {
+                ev.preventDefault();
+                // Konum sınır kontrolü
+                var latlngStr = document.getElementById('latlng-input').value;
+                var latlngArr = latlngStr.split(',').map(Number);
+                var lat = latlngArr[0];
+                var lng = latlngArr[1];
+                var svgHeight = 7598.6665;
+                var svgWidth = 8020;
+                var padding = 0; // Kenarlardan içeride tutmak istersen değiştir
+                if (
+                    lat < 0 + padding || lat > svgHeight - padding ||
+                    lng < 0 + padding || lng > svgWidth - padding
+                ) {
+                    alert('Seçilen konum SVG sınırları dışında! Marker eklenemez/düzenlenemez.');
+                    return;
                 }
-                await loadMarkersFromDB(); // Backend'den güncel veriyi al
-                loadAdminMarkers();
-                editModal.style.display = 'none';
-                document.getElementById('admin-modal').style.display = 'block';
-            } catch (error) {
-                alert('Marker kaydedilemedi.');
-            }
-        };
+                var newData = {
+                    latLng: document.getElementById('latlng-input').value.split(', ').map(Number),
+                    title: document.getElementById('title-input').value,
+                    description: document.getElementById('desc-input').value,
+                    images: tempImages,
+                    class: document.getElementById('class-select').value
+                };
+
+                try {
+                    if (selectedMarkerIndex === -1) {
+                        await saveMarkerToDB(newData);
+                    } else {
+                        newData.id = markersData[selectedMarkerIndex].id;
+                        await deleteMarkerFromDB(newData.id);
+                        const savedMarker = await saveMarkerToDB(newData);
+                        markersData[selectedMarkerIndex] = savedMarker; // Yerel veriyi güncelle
+                    }
+                    await loadMarkersFromDB(); // Backend'den güncel veriyi al
+                    loadAdminMarkers();
+                    editModal.style.display = 'none';
+                    document.getElementById('admin-modal').style.display = 'block';
+                } catch (error) {
+                    alert('Marker kaydedilemedi.');
+                }
+            };
 
         var deleteBtn = document.getElementById('delete-marker');
         if (deleteBtn) {
