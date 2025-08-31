@@ -854,16 +854,16 @@ function initApp() {
             form.onsubmit = async function(ev) {
                 ev.preventDefault();
                 // Konum sınır kontrolü
-                var latlngStr = document.getElementById('latlng-input').value;
+                var latlngStr = document.getElementById('latlng-input').value.replace(/\s+/g, '');
                 var latlngArr = latlngStr.split(',').map(Number);
                 var lat = latlngArr[0];
                 var lng = latlngArr[1];
                 var svgHeight = 7598.6665;
                 var svgWidth = 8020;
-                var padding = 0; // Kenarlardan içeride tutmak istersen değiştir
                 if (
-                    lat < 0 + padding || lat > svgHeight - padding ||
-                    lng < 0 + padding || lng > svgWidth - padding
+                    isNaN(lat) || isNaN(lng) ||
+                    lat < 0 || lat > svgHeight ||
+                    lng < 0 || lng > svgWidth
                 ) {
                     alert('Seçilen konum SVG sınırları dışında! Marker eklenemez/düzenlenemez.');
                     return;
