@@ -127,7 +127,7 @@ function initApp() {
 
     async function saveMarkerToDB(markerData) {
         try {
-            const response = await fetch('/api/markers', {
+            const response = await authFetch('/api/markers', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(markerData)
@@ -143,7 +143,7 @@ function initApp() {
 
     async function deleteMarkerFromDB(markerId) {
         try {
-            const response = await fetch(`/api/markers/${markerId}`, {
+            const response = await authFetch(`/api/markers/${markerId}`, {
                 method: 'DELETE'
             });
             const result = await response.json();
@@ -169,7 +169,7 @@ function initApp() {
 
     async function saveClassToDB(className) {
         try {
-            const response = await fetch('/api/classes', {
+            const response = await authFetch('/api/classes', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ name: className })
@@ -185,7 +185,7 @@ function initApp() {
 
     async function deleteClassFromDB(className) {
         try {
-            const response = await fetch(`/api/classes/${encodeURIComponent(className)}`, {
+            const response = await authFetch(`/api/classes/${encodeURIComponent(className)}`, {
                 method: 'DELETE'
             });
             const result = await response.json();
@@ -205,6 +205,14 @@ function initApp() {
     // Sayfa açılışında verileri backend'den yükle
     loadMarkersFromDB();
     loadClassesFromDB();
+
+    // Admin modu durumunu kontrol et
+    if (authToken) {
+        adminMode = true;
+        document.getElementById('admin-toggle').textContent = 'Admin Modu Kapat';
+        document.getElementById('show-admin-panel').style.display = 'block';
+        document.getElementById('manage-classes-btn').style.display = 'block';
+    }
 
     function loadMarkers() {
         markerLayers.forEach(function(layer) {
@@ -244,9 +252,16 @@ function initApp() {
                     }));
                 }, 200);
 
+                var point = map.latLngToContainerPoint(marker.getLatLng());
+                var mapHeight = map.getSize().y;
+                var isTop60Percent = point.y < mapHeight * 0.6;
+
                 var popup = marker.getPopup();
+                popup.options.offset = [0, isTop60Percent ? 40 : -40];
+                popup.options.autoPanPaddingTopLeft = L.point(50, isTop60Percent ? 200 : 50);
+                popup.options.autoPanPaddingBottomRight = L.point(50, isTop60Percent ? 50 : 200);
                 marker.openPopup();
-                
+
                 setTimeout(() => {
                     popup.update();
                 }, 0);
@@ -258,6 +273,7 @@ function initApp() {
                 const updatedData = { ...markersData[index], latLng: newLatLng };
 
                 try {
+                    // Update the existing marker instead of deleting and recreating
                     await deleteMarkerFromDB(markerId);
                     await saveMarkerToDB(updatedData);
                     loadMarkersFromDB(); // Yeniden yükle
@@ -467,9 +483,11 @@ function initApp() {
                 if (loginModal) loginModal.querySelector('#login-error').textContent = '';
             } else {
                 adminMode = false;
-                adminToggle.textContent = 'Admin Modu Kapat';
+                adminToggle.textContent = 'Admin Modu';
                 if (showAdminPanelBtn) showAdminPanelBtn.style.display = 'none';
                 if (manageClassesBtn) manageClassesBtn.style.display = 'none';
+                localStorage.removeItem('authToken'); // Token'ı sil
+                authToken = null;
                 loadMarkers();
                 document.getElementById('admin-modal').style.display = 'none';
             }
@@ -546,6 +564,8 @@ function initApp() {
 
                 if (result.success) {
                     console.log('Giriş başarılı!');
+                    authToken = result.token; // Token'ı kaydet
+                    localStorage.setItem('authToken', authToken); // Local Storage'a kaydet
                     adminMode = true;
                     adminToggle.textContent = 'Admin Modu Kapat';
                     if (loginModal) loginModal.style.display = 'none';
@@ -680,15 +700,20 @@ function initApp() {
         if (newName && newName.trim() && !classesData.includes(newName.trim())) {
             const oldName = classesData[index];
             try {
+                // Delete old class first
                 await deleteClassFromDB(oldName);
+                
+                // Save new class
                 await saveClassToDB(newName.trim());
-                markersData.forEach(async marker => {
+
+                // Update markers with the new class name
+                for (const marker of markersData) {
                     if (marker.class === oldName) {
                         marker.class = newName.trim();
                         await deleteMarkerFromDB(marker.id);
                         await saveMarkerToDB(marker);
                     }
-                });
+                }
                 loadClassList();
                 loadMarkersFromDB();
             } catch (error) {
@@ -761,6 +786,7 @@ function initApp() {
             if (url) {
                 tempImages.push(url);
                 updateImageList();
+                document.getElementById('image-url-input').value = '';
                 if (editModal) editModal.querySelector('#image-error').textContent = '';
             } else {
                 if (editModal) editModal.querySelector('#image-error').textContent = 'Lütfen geçerli bir URL girin.';
@@ -772,11 +798,15 @@ function initApp() {
     if (imageFileInput) {
         imageFileInput.addEventListener('change', async function(e) {
             var files = e.target.files;
+            if (files.length > 0) {
+                if (editModal) editModal.querySelector('#image-error').textContent = 'Görsel yükleniyor...';
+            }
+            
             for (let file of files) {
                 var formData = new FormData();
                 formData.append('image', file);
                 try {
-                    const response = await fetch('/upload', {
+                    const response = await authFetch('/upload', {
                         method: 'POST',
                         body: formData
                     });
