@@ -113,6 +113,14 @@ body {
     .suggestions-list {
         width: 200px;
     }
+    #map {
+    height: 80vh;
+  }
+  .modal-content, .image-viewer-content {
+    width: 98%;
+    max-width: none;
+    padding: 10px;
+  }
 }
 
 .admin-buttons {
@@ -628,5 +636,55 @@ body {
 .leaflet-popup-content {
     max-height: 350px;
     overflow-y: auto;
+}
+
+/* Hamburger menü sadece mobilde görünür */
+.mobile-menu {
+  display: none;
+}
+@media (max-width: 768px) {
+  .mobile-menu {
+    display: block;
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    z-index: 2000;
+  }
+  #menu-toggle {
+    background: #007bff;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 28px;
+    padding: 8px 12px;
+    cursor: pointer;
+  }
+  #mobile-nav {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+    margin-top: 8px;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  #mobile-nav a {
+    color: #007bff;
+    text-decoration: none;
+    font-size: 18px;
+    padding: 6px 0;
+  }
+}
+
+@media (max-width: 480px) {
+  #search-input, .suggestions-list {
+    width: 150px;
+    font-size: 13px;
+  }
+  #search-button, #admin-toggle, #add-new-marker {
+    font-size: 18px;
+    padding: 14px;
+  }
 }
 

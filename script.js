@@ -1118,6 +1118,12 @@ function initApp() {
     }
 }
 
+// script.js dosyasına eklenir
+document.getElementById('menu-toggle').onclick = function() {
+  var nav = document.getElementById('mobile-nav');
+  nav.style.display = nav.style.display === 'block' ? 'none' : 'block';
+};
+
 document.addEventListener('DOMContentLoaded', function() {
     console.log('DOMContentLoaded tetiklendi');
     initApp();
