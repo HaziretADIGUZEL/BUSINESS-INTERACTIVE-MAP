@@ -1118,27 +1118,6 @@ function initApp() {
     }
 }
 
-// script.js dosyasına eklenir
-
-// Mobil menü butonu fonksiyonu
-document.addEventListener('DOMContentLoaded', function() {
-    var mobileMenuToggle = document.getElementById('mobile-menu-toggle');
-    var mobileMenuButtons = document.getElementById('mobile-menu-buttons');
-    if (mobileMenuToggle && mobileMenuButtons) {
-        mobileMenuToggle.addEventListener('click', function() {
-            if (window.innerWidth <= 768) {
-                mobileMenuButtons.style.display = mobileMenuButtons.style.display === 'flex' ? 'none' : 'flex';
-            }
-        });
-        // Menü dışında bir yere tıklanınca menüyü kapat
-        document.addEventListener('click', function(e) {
-            if (window.innerWidth <= 768 && !mobileMenuToggle.contains(e.target) && !mobileMenuButtons.contains(e.target)) {
-                mobileMenuButtons.style.display = 'none';
-            }
-        });
-    }
-});
-
 document.addEventListener('DOMContentLoaded', function() {
     console.log('DOMContentLoaded tetiklendi');
     initApp();
