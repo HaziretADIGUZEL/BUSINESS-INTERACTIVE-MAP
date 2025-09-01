@@ -58,13 +58,16 @@ function initApp() {
     // Harita oluşturma
     var map;
     try {
+        // Cihaz tipine göre zoom seviyesini ayarla
+        var isMobile = window.innerWidth <= 768;
+        var minZoom = isMobile ? -5 : -3; // Mobilde daha az zoom out
         map = L.map('map', {
             crs: L.CRS.Simple,
-            minZoom: -3,
+            minZoom: minZoom,
             maxZoom: 3,
             maxBoundsViscosity: 1.0
         });
-        console.log('Harita oluşturuldu');
+        console.log('Harita oluşturuldu. minZoom:', minZoom);
     } catch (err) {
         console.error('L.map hatası:', err);
         alert('Hata: Leaflet harita oluşturulamadı.');
@@ -101,9 +104,11 @@ function initApp() {
 
     // Haritayı ortala
     try {
-        map.setView([svgHeight / 2, svgWidth / 2], -3);
+        var isMobile = window.innerWidth <= 768;
+        var initialZoom = isMobile ? -5 : -3; // Mobilde daha yakın başlat
+        map.setView([svgHeight / 2, svgWidth / 2], initialZoom);
         map.setMaxBounds(paddedBounds); // Genişletilmiş sınırları kullan
-        console.log('Harita ortalandı:', [svgHeight / 2, svgWidth / 2]);
+        console.log('Harita ortalandı:', [svgHeight / 2, svgWidth / 2], 'Zoom:', initialZoom);
     } catch (err) {
         console.error('map.setView hatası:', err);
     }
