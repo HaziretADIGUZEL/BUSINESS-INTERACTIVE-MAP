@@ -219,11 +219,41 @@ function initApp() {
     loadClassesFromDB();
 
     // Admin modu durumunu kontrol et
+    function setAdminMode(active) {
+        adminMode = active;
+        if (active) {
+            document.getElementById('admin-toggle').textContent = 'Admin Modu Kapat';
+            document.getElementById('show-admin-panel').style.display = 'block';
+            document.getElementById('manage-classes-btn').style.display = 'block';
+            // Mobil paneldeki butonları da güncelle
+            var adminToggleMobile = document.getElementById('admin-toggle-mobile');
+            var closeAdminMobile = document.getElementById('close-admin-mobile');
+            var showAdminPanelMobile = document.getElementById('show-admin-panel-mobile');
+            var manageClassesBtnMobile = document.getElementById('manage-classes-btn-mobile');
+            if (adminToggleMobile) adminToggleMobile.style.display = 'none';
+            if (closeAdminMobile) closeAdminMobile.style.display = 'block';
+            if (showAdminPanelMobile) showAdminPanelMobile.style.display = 'block';
+            if (manageClassesBtnMobile) manageClassesBtnMobile.style.display = 'block';
+        } else {
+            document.getElementById('admin-toggle').textContent = 'Admin Modu';
+            document.getElementById('show-admin-panel').style.display = 'none';
+            document.getElementById('manage-classes-btn').style.display = 'none';
+            // Mobil paneldeki butonları da güncelle
+            var adminToggleMobile = document.getElementById('admin-toggle-mobile');
+            var closeAdminMobile = document.getElementById('close-admin-mobile');
+            var showAdminPanelMobile = document.getElementById('show-admin-panel-mobile');
+            var manageClassesBtnMobile = document.getElementById('manage-classes-btn-mobile');
+            if (adminToggleMobile) adminToggleMobile.style.display = 'block';
+            if (closeAdminMobile) closeAdminMobile.style.display = 'none';
+            if (showAdminPanelMobile) showAdminPanelMobile.style.display = 'none';
+            if (manageClassesBtnMobile) manageClassesBtnMobile.style.display = 'none';
+        }
+    }
+
     if (authToken) {
-        adminMode = true;
-        document.getElementById('admin-toggle').textContent = 'Admin Modu Kapat';
-        document.getElementById('show-admin-panel').style.display = 'block';
-        document.getElementById('manage-classes-btn').style.display = 'block';
+        setAdminMode(true);
+    } else {
+        setAdminMode(false);
     }
 
     function loadMarkers() {
@@ -502,19 +532,22 @@ function initApp() {
     
     if (adminToggle) {
         adminToggle.addEventListener('click', function() {
-            console.log('Admin Modu butonuna tıklandı');
-            if (!adminMode) {
-                if (loginModal) loginModal.style.display = 'block';
-                if (loginModal) loginModal.querySelector('#login-error').textContent = '';
-            } else {
+            if (adminMode) {
                 adminMode = false;
                 adminToggle.textContent = 'Admin Modu';
                 if (showAdminPanelBtn) showAdminPanelBtn.style.display = 'none';
                 if (manageClassesBtn) manageClassesBtn.style.display = 'none';
-                localStorage.removeItem('authToken'); // Token'ı sil
+                localStorage.removeItem('authToken');
                 authToken = null;
                 loadMarkers();
                 document.getElementById('admin-modal').style.display = 'none';
+                showLogoutOverlay();
+                setTimeout(function() {
+                    window.location.reload();
+                }, 2200);
+            } else {
+                if (loginModal) loginModal.style.display = 'block';
+                if (loginModal) loginModal.querySelector('#login-error').textContent = '';
             }
         });
     } else {
@@ -593,9 +626,13 @@ function initApp() {
                     localStorage.setItem('authToken', authToken); // Local Storage'a kaydet
                     adminMode = true;
                     adminToggle.textContent = 'Admin Modu Kapat';
+                    setAdminMode(true); // Hem masaüstü hem mobil panelde butonları günceller
+                    var loginModal = document.getElementById('login-modal');
                     if (loginModal) loginModal.style.display = 'none';
-                    if (showAdminPanelBtn) showAdminPanelBtn.style.display = 'block';
-                    if (manageClassesBtn) manageClassesBtn.style.display = 'block';
+                    // Mobil panelde admin moduna geçildiyse paneli tekrar aç
+                    if (isMobile()) {
+                        showMobilePanel();
+                    }
                     loadMarkers();
                 } else {
                     console.log('Giriş başarısız:', result.message);
@@ -1121,9 +1158,122 @@ function initApp() {
             }
         });
     }
+
+    function showLogoutOverlay() {
+        var overlay = document.createElement('div');
+        overlay.id = 'logout-overlay';
+        overlay.style.position = 'fixed';
+        overlay.style.top = '0';
+        overlay.style.left = '0';
+        overlay.style.width = '100vw';
+        overlay.style.height = '100vh';
+        overlay.style.background = 'rgba(0,0,0,0.5)';
+        overlay.style.zIndex = '9999';
+        overlay.style.display = 'flex';
+        overlay.style.alignItems = 'center';
+        overlay.style.justifyContent = 'center';
+        overlay.innerHTML = '<div style="background:#fff;padding:32px 48px;border-radius:18px;font-size:2rem;font-weight:600;color:#007bff;box-shadow:0 2px 16px rgba(0,0,0,0.18);">Çıkış yapılıyor...</div>';
+        document.body.appendChild(overlay);
+    }
 }
 
 document.addEventListener('DOMContentLoaded', function() {
     console.log('DOMContentLoaded tetiklendi');
     initApp();
+});
+
+// Hamburger menü ve mobil panel işlevleri
+var hamburgerMenu = document.getElementById('hamburger-menu');
+var mobilePanel = document.getElementById('mobile-panel');
+var adminToggleMobile = document.getElementById('admin-toggle-mobile');
+var closeAdminMobile = document.getElementById('close-admin-mobile');
+var showAdminPanelMobile = document.getElementById('show-admin-panel-mobile');
+var manageClassesBtnMobile = document.getElementById('manage-classes-btn-mobile');
+
+function isMobile() {
+    return window.innerWidth <= 768;
+}
+
+function showMobilePanel() {
+    if (mobilePanel) {
+        mobilePanel.classList.add('active');
+    }
+}
+function hideMobilePanel() {
+    if (mobilePanel) {
+        mobilePanel.classList.remove('active');
+    }
+}
+
+
+if (hamburgerMenu && mobilePanel) {
+    hamburgerMenu.style.display = isMobile() ? 'block' : 'none';
+    hideMobilePanel();
+    hamburgerMenu.addEventListener('click', function(e) {
+        e.stopPropagation();
+        showMobilePanel();
+    });
+    // Panelin içindeki tıklamalar paneli kapatmasın
+    mobilePanel.addEventListener('click', function(e) {
+        e.stopPropagation();
+    });
+    // Panel dışında bir yere tıklanınca paneli kapat
+    document.addEventListener('click', function(e) {
+        if (isMobile() && mobilePanel.classList.contains('active')) {
+            if (!mobilePanel.contains(e.target) && e.target !== hamburgerMenu) {
+                hideMobilePanel();
+            }
+        }
+    });
+}
+
+window.addEventListener('resize', function() {
+    if (hamburgerMenu) hamburgerMenu.style.display = isMobile() ? 'block' : 'none';
+    hideMobilePanel();
+});
+
+if (adminToggleMobile) {
+    adminToggleMobile.addEventListener('click', function() {
+        // Masaüstü admin girişi ekranını da aç
+        var desktopLoginModal = document.getElementById('login-modal');
+        if (desktopLoginModal) {
+            desktopLoginModal.style.display = 'block';
+        }
+        // Modalı açınca mobil paneli kapat
+        hideMobilePanel();
+    });
+}
+if (closeAdminMobile) {
+    closeAdminMobile.addEventListener('click', function() {
+        var desktopAdminToggle = document.getElementById('admin-toggle');
+        if (desktopAdminToggle) desktopAdminToggle.click();
+        setAdminMode(false);
+        showLogoutOverlay();
+        setTimeout(function() {
+            window.location.reload();
+        }, 2200);
+    });
+}
+if (showAdminPanelMobile) {
+    showAdminPanelMobile.addEventListener('click', function() {
+        var desktopShowAdminPanel = document.getElementById('show-admin-panel');
+        if (desktopShowAdminPanel) desktopShowAdminPanel.click();
+        hideMobilePanel();
+    });
+}
+if (manageClassesBtnMobile) {
+    manageClassesBtnMobile.addEventListener('click', function() {
+        var desktopManageClassesBtn = document.getElementById('manage-classes-btn');
+        if (desktopManageClassesBtn) desktopManageClassesBtn.click();
+        hideMobilePanel();
+    });
+}
+
+document.querySelectorAll('.modal .close').forEach(function(closeBtn) {
+    closeBtn.addEventListener('click', function() {
+        var modal = closeBtn.closest('.modal');
+        if (modal) {
+            closeModal(modal.id);
+        }
+    });
 });
