@@ -297,14 +297,15 @@ body {
     padding: 20px;
     border-radius: 22px;
     border: 1px solid #888;
-    width: 80%;
-    max-width: 500px;
+    width: 96%;
+    max-width: 600px;
     max-height: 80vh;
     overflow-y: auto;
     position: relative;
     box-sizing: border-box;
     box-shadow: 0 0 0 6px rgba(0,123,255,0.10), /* frame */
         inset 0 2px 18px rgba(0,0,0,0.10);
+    right: -1px;
 
     /* inner shadow */
 }
@@ -653,8 +654,8 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin: 5px 0;
-    padding: 5px;
+    margin: 5px -13px 5px -50px;
+    padding: 15px 5px;
     border: 1px solid #eee;
     border-radius: 3px;
 }
