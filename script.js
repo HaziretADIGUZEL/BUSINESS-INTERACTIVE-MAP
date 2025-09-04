@@ -203,7 +203,7 @@ function initApp() {
             const result = await response.json();
             if (!result.success) throw new Error(result.error || 'Sınıf silinemedi.');
             classesData = classesData.filter(c => c !== className);
-            markersData = markersData.filter(m => m.class !== className);
+            // markersData'yı filtreleme kaldırıldı
         } catch (error) {
             console.error('Sınıf silme hatası:', error);
             throw error;
@@ -786,12 +786,40 @@ function initApp() {
     
     // Sınıf Silme
     window.deleteClass = async function(index) {
-        if (confirm('Bu sınıfı ve ona atanmış tüm markerları silmek istediğinizden emin misiniz?')) {
+        if (!adminMode) {
+            alert('Bu işlemi yapmak için admin modunda olmalısınız.');
+            return;
+        }
+        if (confirm('Bu sınıfı silmek istediğinizden emin misiniz? Markerlar silinmeyecek, sadece sınıf bağlantısı kaldırılacak.')) {
             const classToDelete = classesData[index];
             try {
+                // Sınıfa bağlı markerların class alanını boşalt
+                for (const marker of markersData) {
+                    if (marker.class === classToDelete) {
+                        marker.class = '';
+                        await saveMarkerToDB(marker);
+                    }
+                }
+                // Sınıfı sil
                 await deleteClassFromDB(classToDelete);
-                loadClassList();
-                loadMarkers();
+                // Bekleme ekranı göster
+                var overlay = document.createElement('div');
+                overlay.id = 'class-delete-overlay';
+                overlay.style.position = 'fixed';
+                overlay.style.top = '0';
+                overlay.style.left = '0';
+                overlay.style.width = '100vw';
+                overlay.style.height = '100vh';
+                overlay.style.background = 'rgba(0,0,0,0.5)';
+                overlay.style.zIndex = '9999';
+                overlay.style.display = 'flex';
+                overlay.style.alignItems = 'center';
+                overlay.style.justifyContent = 'center';
+                overlay.innerHTML = '<div style="background:#fff;padding:32px 48px;border-radius:18px;font-size:2rem;font-weight:600;color:#007bff;box-shadow:0 2px 16px rgba(0,0,0,0.18);">Sınıf siliniyor...</div>';
+                document.body.appendChild(overlay);
+                setTimeout(function() {
+                    window.location.reload();
+                }, 2200);
             } catch (error) {
                 alert('Sınıf silinemedi.');
             }
