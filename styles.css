@@ -737,3 +737,12 @@ body {
     overflow-y: auto;
 }
 
+/* Marker ikonlarının arka planını tamamen şeffaf yap ve eski default markerları gizle */
+.marker-icon,
+.marker-icon.active,
+.marker-icon-highlight {
+    background: transparent !important;
+    box-shadow: none !important;
+    border: none !important;
+}
+

@@ -75,40 +75,40 @@ function initApp() {
     }
 
     // SVG yükleme
-    var imageUrl = 'plan.svg';
-    var svgHeight = 7598.6665;
-    var svgWidth = 8020;
+    var imageUrl = 'plan.png';
+    var imgHeight = 7599;
+    var imgWidth = 8020;
     // Sınırları %20 genişlet
     var padding = 0.2;
     var paddedBounds = [
-        [-svgHeight * padding, -svgWidth * padding],
-        [svgHeight * (1 + padding), svgWidth * (1 + padding)]
+        [-imgHeight * padding, -imgWidth * padding],
+        [imgHeight * (1 + padding), imgWidth * (1 + padding)]
     ];
-    var imageBounds = [[0, 0], [svgHeight, svgWidth]];
-    console.log('SVG yükleniyor:', imageUrl);
+    var imageBounds = [[0, 0], [imgHeight, imgWidth]];
+    console.log('PNG yükleniyor:', imageUrl);
     try {
         var imageOverlay = L.imageOverlay(imageUrl, imageBounds).addTo(map);
         imageOverlay.on('load', function() {
-            console.log('SVG başarıyla yüklendi:', imageUrl);
+            console.log('PNG başarıyla yüklendi:', imageUrl);
             var img = document.querySelector('#map img');
-            console.log(img ? { width: img.width, height: img.height } : 'SVG bulunamadı');
+            console.log(img ? { width: img.width, height: img.height } : 'PNG bulunamadı');
         });
         imageOverlay.on('error', function(err) {
-            console.error('SVG yüklenemedi:', imageUrl, err);
-            alert('SVG yüklenemedi: ' + err.type + '. Dosya yolunu veya SVG yapısını kontrol edin.');
+            console.error('PNG yüklenemedi:', imageUrl, err);
+            alert('PNG yüklenemedi: ' + err.type + '. Dosya yolunu veya PNG yapısını kontrol edin.');
         });
     } catch (err) {
         console.error('L.imageOverlay hatası:', err);
-        alert('Hata: Leaflet SVG yüklemesinde sorun.');
+        alert('Hata: Leaflet PNG yüklemesinde sorun.');
     }
 
     // Haritayı ortala
     try {
         var isMobile = window.innerWidth <= 768;
         var initialZoom = isMobile ? -5 : -3; // Mobilde daha yakın başlat
-        map.setView([svgHeight / 2, svgWidth / 2], initialZoom);
+        map.setView([imgHeight / 2, imgWidth / 2], initialZoom);
         map.setMaxBounds(paddedBounds); // Genişletilmiş sınırları kullan
-        console.log('Harita ortalandı:', [svgHeight / 2, svgWidth / 2], 'Zoom:', initialZoom);
+        console.log('Harita ortalandı:', [imgHeight / 2, imgWidth / 2], 'Zoom:', initialZoom);
     } catch (err) {
         console.error('map.setView hatası:', err);
     }
@@ -265,15 +265,24 @@ function initApp() {
         markerLayers = [];
 
         markersData.forEach(function(markerData, index) {
+            // Marker rengi
+            const markerColor = markerData.color || '#e6194b';
+            // Ters damla (pin) SVG ikon, %30 daha küçük (15x21px), sivri ucu aşağıda
+            const pinSVG = '<svg width="20" height="28" viewBox="0 0 22 30" xmlns="http://www.w3.org/2000/svg">' +
+                '<g>' +
+                `<path d="M11 29 C3 18 1 14 1 9.5 A10 10 0 1 1 21 9.5 C21 14 19 18 11 29 Z" fill="${markerColor}" stroke="#222" stroke-width="1.5"/>` +
+                '<circle cx="11" cy="11" r="4.5" fill="#fff" stroke="#222" stroke-width="1"/>' +
+                '</g></svg>';
             var marker = L.marker([markerData.latLng[0], markerData.latLng[1]], {
                 icon: L.divIcon({
                     className: 'marker-icon',
-                    iconSize: [20, 20],
-                    html: ''
+                    iconSize: [15, 21],
+                    iconAnchor: [7.5, 20], // Sivri uç tam konumda
+                    html: pinSVG
                 }),
                 draggable: adminMode,
-                autoPan: true, // Marker sürüklenirken harita otomatik kayar
-                autoPanSpeed: 100 // Varsayılan: 10, daha yüksek değer daha hızlı kaydırır
+                autoPan: true,
+                autoPanSpeed: 100
             }).addTo(map);
 
             marker.bindPopup(createPopupContent(markerData, index), {
@@ -283,16 +292,24 @@ function initApp() {
 
             marker.on('click', function(e) {
                 map.closePopup();
+                // Aktifken mavi kenarlıklı damla SVG
+                const activePinSVG = '<svg width="15" height="21" viewBox="0 0 22 30" xmlns="http://www.w3.org/2000/svg">' +
+                    '<g>' +
+                    `<path d="M11 29 C3 18 1 14 1 9.5 A10 10 0 1 1 21 9.5 C21 14 19 18 11 29 Z" fill="${markerColor}" stroke="#007bff" stroke-width="2.5"/>` +
+                    '<circle cx="11" cy="11" r="4.5" fill="#fff" stroke="#007bff" stroke-width="1.5"/>' +
+                    '</g></svg>';
                 marker.setIcon(L.divIcon({
                     className: 'marker-icon active',
-                    iconSize: [20, 20],
-                    html: ''
+                    iconSize: [15, 21],
+                    iconAnchor: [7.5, 20],
+                    html: activePinSVG
                 }));
                 setTimeout(() => {
                     marker.setIcon(L.divIcon({
                         className: 'marker-icon',
-                        iconSize: [20, 20],
-                        html: ''
+                        iconSize: [15, 21],
+                        iconAnchor: [7.5, 20],
+                        html: pinSVG
                     }));
                 }, 200);
 
@@ -313,14 +330,14 @@ function initApp() {
 
             marker.on('dragend', async function(e) {
                 const newLatLng = [marker.getLatLng().lat, marker.getLatLng().lng];
-                var svgHeight = 7598.6665;
-                var svgWidth = 8020;
+                var imgHeight = 7599;
+                var imgWidth = 8020;
                 // Sınır kontrolü
                 if (
-                    newLatLng[0] < 0 || newLatLng[0] > svgHeight ||
-                    newLatLng[1] < 0 || newLatLng[1] > svgWidth
+                    newLatLng[0] < 0 || newLatLng[0] > imgHeight ||
+                    newLatLng[1] < 0 || newLatLng[1] > imgWidth
                 ) {
-                    alert('Seçilen konum SVG sınırları dışında! Marker taşınamaz.');
+                    alert('Seçilen konum PNG sınırları dışında! Marker taşınamaz.');
                     // Marker'ı eski konumuna döndür
                     marker.setLatLng([markersData[index].latLng[0], markersData[index].latLng[1]]);
                     return;
@@ -831,7 +848,7 @@ function initApp() {
     if (addNewBtn) {
         addNewBtn.addEventListener('click', function() {
             selectedMarkerIndex = -1;
-            const newMarkerData = { latLng: [svgHeight / 2, svgWidth / 2], title: '', description: '', images: [], class: '' };
+            const newMarkerData = { latLng: [imgHeight / 2, imgWidth / 2], title: '', description: '', images: [], class: '' };
             openEditModal(newMarkerData, selectedMarkerIndex);
             document.getElementById('admin-modal').style.display = 'none';
         });
@@ -929,7 +946,115 @@ function initApp() {
         document.getElementById('title-input').value = data.title;
         document.getElementById('desc-input').value = data.description;
         document.getElementById('latlng-input').value = data.latLng.join(', ');
-        document.getElementById('class-select').value = data.class || '';
+
+        // Çoklu sınıf desteği: class artık dizi
+        // Tag alanı
+        const classTagsDiv = document.getElementById('class-tags');
+        if (classTagsDiv) classTagsDiv.remove();
+        const newTagsDiv = document.createElement('div');
+        newTagsDiv.id = 'class-tags';
+        newTagsDiv.style.display = 'flex';
+        newTagsDiv.style.flexWrap = 'wrap';
+        newTagsDiv.style.gap = '8px';
+        // Sınıf taglarını göster
+        let markerClasses = Array.isArray(data.class) ? data.class : (data.class ? [data.class] : []);
+        function renderTags() {
+            newTagsDiv.innerHTML = '';
+            markerClasses.forEach((cls, idx) => {
+                const tag = document.createElement('span');
+                tag.style.background = '#e0e0e0';
+                tag.style.borderRadius = '12px';
+                tag.style.padding = '2px 10px 2px 8px';
+                tag.style.display = 'inline-flex';
+                tag.style.alignItems = 'center';
+                tag.style.fontSize = '0.95em';
+                tag.style.marginRight = '4px';
+                tag.innerHTML = `${cls} <span style="margin-left:6px;cursor:pointer;color:#c00;font-weight:bold;" title="Kaldır">&times;</span>`;
+                tag.querySelector('span').onclick = function() {
+                    markerClasses.splice(idx, 1);
+                    renderTags();
+                };
+                newTagsDiv.appendChild(tag);
+            });
+        }
+        renderTags();
+        // Sınıf seçimi
+        const classSelect = document.getElementById('class-select');
+        if (classSelect) {
+            classSelect.value = '';
+            classSelect.onchange = function() {
+                const selected = classSelect.value;
+                if (selected && !markerClasses.includes(selected)) {
+                    markerClasses.push(selected);
+                    renderTags();
+                }
+                classSelect.value = '';
+            };
+        }
+        // Tag alanını classSelect'in hemen altına ekle
+        if (classSelect && classSelect.parentNode) {
+            classSelect.parentNode.insertBefore(newTagsDiv, classSelect.nextSibling);
+        }
+
+        // --- Renk seçici kutucuklar ---
+        const colorRowId = 'marker-color-row';
+        let colorRow = document.getElementById(colorRowId);
+        if (colorRow) colorRow.remove();
+        colorRow = document.createElement('div');
+        colorRow.id = colorRowId;
+        colorRow.style.display = 'flex';
+        colorRow.style.flexWrap = 'wrap';
+        colorRow.style.gap = '6px';
+        colorRow.style.margin = '12px 0 8px 0';
+        // 24 kontrast renk
+        const markerColors = [
+            '#e6194b','#3cb44b','#ffe119','#4363d8','#f58231','#911eb4','#46f0f0','#f032e6',
+            '#bcf60c','#fabebe','#008080','#e6beff','#9a6324','#fffac8','#800000','#aaffc3',
+            '#808000','#ffd8b1','#000075','#808080','#ffffff','#000000','#a9a9a9','#ff69b4'
+        ];
+        let selectedColor = data.color || markerColors[0];
+        function updateColorBoxes() {
+            Array.from(colorRow.children).forEach((box, i) => {
+                const color = markerColors[i];
+                box.style.border = (color === selectedColor) ? '3px solid #333' : '2px solid #ccc';
+                if (color === selectedColor) {
+                    box.style.boxShadow = '0 0 0 3px #007bff';
+                    box.innerHTML = '<svg width="14" height="14" style="position:absolute;top:4px;left:4px;pointer-events:none;" viewBox="0 0 14 14"><polyline points="3,7 6,10 11,4" style="fill:none;stroke:#007bff;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round"/></svg>';
+                    box.style.position = 'relative';
+                } else {
+                    box.style.boxShadow = '';
+                    box.innerHTML = '';
+                    box.style.position = '';
+                }
+            });
+        }
+        markerColors.forEach((color, i) => {
+            const colorBox = document.createElement('div');
+            colorBox.style.width = '22px';
+            colorBox.style.height = '22px';
+            colorBox.style.borderRadius = '6px';
+            colorBox.style.border = color === selectedColor ? '3px solid #333' : '2px solid #ccc';
+            colorBox.style.background = color;
+            colorBox.style.cursor = 'pointer';
+            colorBox.title = color;
+            if (color === selectedColor) {
+                colorBox.style.boxShadow = '0 0 0 3px #007bff';
+                colorBox.innerHTML = '<svg width="14" height="14" style="position:absolute;top:4px;left:4px;pointer-events:none;" viewBox="0 0 14 14"><polyline points="3,7 6,10 11,4" style="fill:none;stroke:#007bff;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round"/></svg>';
+                colorBox.style.position = 'relative';
+            }
+            colorBox.onclick = function() {
+                selectedColor = color;
+                updateColorBoxes();
+            };
+            colorRow.appendChild(colorBox);
+        });
+        // Renk kutucuklarını classSelect'in altına (tag'lerin altına) ekle
+        if (classSelect && classSelect.parentNode) {
+            classSelect.parentNode.insertBefore(colorRow, newTagsDiv.nextSibling);
+        }
+        // Her modal açılışında tik işaretini güncelle
+        updateColorBoxes();
+
         tempImages = data.images || [];
         updateImageList();
 
@@ -942,22 +1067,24 @@ function initApp() {
                 var latlngArr = latlngStr.split(',').map(Number);
                 var lat = latlngArr[0];
                 var lng = latlngArr[1];
-                var svgHeight = 7598.6665;
-                var svgWidth = 8020;
+                var imgHeight = 7599;
+                var imgWidth = 8020;
                 if (
                     isNaN(lat) || isNaN(lng) ||
-                    lat < 0 || lat > svgHeight ||
-                    lng < 0 || lng > svgWidth
+                    lat < 0 || lat > imgHeight ||
+                    lng < 0 || lng > imgWidth
                 ) {
-                    alert('Seçilen konum SVG sınırları dışında! Marker eklenemez/düzenlenemez.');
+                    alert('Seçilen konum PNG sınırları dışında! Marker eklenemez/düzenlenemez.');
                     return;
                 }
+
                 var newData = {
                     latLng: document.getElementById('latlng-input').value.split(', ').map(Number),
                     title: document.getElementById('title-input').value,
                     description: document.getElementById('desc-input').value,
                     images: tempImages,
-                    class: document.getElementById('class-select').value
+                    class: markerClasses, // Artık dizi
+                    color: selectedColor
                 };
 
                 try {
@@ -1158,27 +1285,25 @@ function initApp() {
             return;
         }
 
+        // Hiçbir filtre seçili değilse hepsi görünsün
         if (activeFilters.size === 0 && !inversionActive) {
-            if (selectAllFilters && selectAllFilters.checked) {
-                // Do nothing, all markers are already shown
-            } else {
-                markerLayers.forEach(layer => {
-                    layer.marker.addTo(map);
-                });
-                return;
-            }
+            markerLayers.forEach(layer => {
+                layer.marker.addTo(map);
+            });
+            return;
         }
 
         markerLayers.forEach(layer => {
-            const hasClass = layer.data.class && activeFilters.has(layer.data.class);
-            let isVisible;
-
-            if (inversionActive) {
-                isVisible = !hasClass;
-            } else {
-                isVisible = hasClass;
+            // Çoklu sınıf desteği: class artık dizi
+            let markerClasses = Array.isArray(layer.data.class) ? layer.data.class : (layer.data.class ? [layer.data.class] : []);
+            // Seçili tüm filtreler marker'ın class dizisinde varsa göster
+            let isVisible = true;
+            for (let filter of activeFilters) {
+                if (!markerClasses.includes(filter)) {
+                    isVisible = false;
+                    break;
+                }
             }
-            
             if (isVisible) {
                 layer.marker.addTo(map);
             } else {
