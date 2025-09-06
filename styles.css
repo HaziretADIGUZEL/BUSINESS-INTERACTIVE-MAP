@@ -86,7 +86,11 @@ body {
     margin-right: -3px;
     background: #f5f5f5 url('pattern.png') repeat;
 
-    /* SVG dışında kalan alanın rengi ve tekrar eden desen */
+
+#user-barcode-btn {
+    z-index: 2000 !important;
+    position: fixed !important;
+}
 }
 
 .search-container {

@@ -230,10 +230,12 @@ function initApp() {
             var closeAdminMobile = document.getElementById('close-admin-mobile');
             var showAdminPanelMobile = document.getElementById('show-admin-panel-mobile');
             var manageClassesBtnMobile = document.getElementById('manage-classes-btn-mobile');
+            var scanBarcodeBtnMobile = document.getElementById('scan-barcode-btn-mobile');
             if (adminToggleMobile) adminToggleMobile.style.display = 'none';
             if (closeAdminMobile) closeAdminMobile.style.display = 'block';
             if (showAdminPanelMobile) showAdminPanelMobile.style.display = 'block';
             if (manageClassesBtnMobile) manageClassesBtnMobile.style.display = 'block';
+            if (scanBarcodeBtnMobile) scanBarcodeBtnMobile.style.display = 'block';
         } else {
             document.getElementById('admin-toggle').textContent = 'Admin Modu';
             document.getElementById('show-admin-panel').style.display = 'none';
@@ -243,11 +245,22 @@ function initApp() {
             var closeAdminMobile = document.getElementById('close-admin-mobile');
             var showAdminPanelMobile = document.getElementById('show-admin-panel-mobile');
             var manageClassesBtnMobile = document.getElementById('manage-classes-btn-mobile');
+            var scanBarcodeBtnMobile = document.getElementById('scan-barcode-btn-mobile');
             if (adminToggleMobile) adminToggleMobile.style.display = 'block';
             if (closeAdminMobile) closeAdminMobile.style.display = 'none';
             if (showAdminPanelMobile) showAdminPanelMobile.style.display = 'none';
             if (manageClassesBtnMobile) manageClassesBtnMobile.style.display = 'none';
+            if (scanBarcodeBtnMobile) scanBarcodeBtnMobile.style.display = 'none';
         }
+// Mobil admin paneldeki Barkod Okut butonuna işlev ekle
+var scanBarcodeBtnMobile = document.getElementById('scan-barcode-btn-mobile');
+if (scanBarcodeBtnMobile) {
+    scanBarcodeBtnMobile.addEventListener('click', function() {
+        // Barkod okutma modalını aç
+        openBarcodeModal('main');
+        hideMobilePanel();
+    });
+}
     }
 
     if (authToken) {
@@ -313,19 +326,7 @@ function initApp() {
                     }));
                 }, 200);
 
-                var point = map.latLngToContainerPoint(marker.getLatLng());
-                var mapHeight = map.getSize().y;
-                var isTop60Percent = point.y < mapHeight * 0.6;
-
-                var popup = marker.getPopup();
-                popup.options.offset = [0, isTop60Percent ? 40 : -40];
-                popup.options.autoPanPaddingTopLeft = L.point(50, isTop60Percent ? 200 : 50);
-                popup.options.autoPanPaddingBottomRight = L.point(50, isTop60Percent ? 50 : 200);
                 marker.openPopup();
-
-                setTimeout(() => {
-                    popup.update();
-                }, 0);
             });
 
             marker.on('dragend', async function(e) {
@@ -361,9 +362,10 @@ function initApp() {
     }
 
     function createPopupContent(markerData, index) {
-        var imagesHtml = markerData.images && markerData.images.length > 0
-            ? `<div class="marker-images">${markerData.images.map((img, i) => `<img src="${img}" alt="Image ${i}" onclick="openImageViewer(${index}, ${i})">`).join('')}</div>`
-            : '<img src="https://via.placeholder.com/150" alt="No image" style="width:80px;height:80px;object-fit:cover;">';
+        var imagesHtml = '';
+        if (markerData.images && markerData.images.length > 0) {
+            imagesHtml = `<div class="marker-images">${markerData.images.map((img, i) => `<img src="${img}" alt="Image ${i}" onclick="openImageViewer(${index}, ${i})">`).join('')}</div>`;
+        }
         var adminEditButton = adminMode ? `<button class="edit-button" onclick="editMarker(${index})">Düzenle</button>` : '';
         return `
             <h2>${markerData.title}</h2>
@@ -396,10 +398,14 @@ function initApp() {
 
     function showSuggestions(query) {
         suggestionsList.innerHTML = '';
-        if (query.trim() === '') {
+        if (query.trim() === '') { 
             suggestionsList.style.display = 'none';
             return;
         }
+            if (typeof hideAllFilters !== 'undefined' && hideAllFilters) {
+                hideAllFilters.checked = false;
+                if (typeof updateFilters === 'function') updateFilters();
+            }
 
         var matchingMarkers = markerLayers.filter(function(layer) {
             var title = layer.data.title.toLowerCase();
@@ -415,35 +421,34 @@ function initApp() {
         matchingMarkers.forEach(function(layer) {
             var li = document.createElement('li');
             li.className = 'suggestion-item';
-            var imgSrc = layer.data.images && layer.data.images.length > 0 ? layer.data.images[0] : 'https://via.placeholder.com/40';
             var descShort = layer.data.description.length > 30 ? layer.data.description.substring(0, 30) + '...' : layer.data.description;
-            li.innerHTML = `
-                <img src="${imgSrc}" alt="${layer.data.title}">
-                <div>
-                    <div class="title">${layer.data.title}</div>
-                    <div class="description">${descShort}</div>
-                </div>
-            `;
+            // Eğer görsel varsa ekle, yoksa sadece başlık ve açıklama göster
+            if (layer.data.images && layer.data.images.length > 0) {
+                var img = document.createElement('img');
+                img.src = layer.data.images[0];
+                img.alt = layer.data.title;
+                li.appendChild(img);
+            }
+            var div = document.createElement('div');
+            var titleDiv = document.createElement('div');
+            titleDiv.className = 'title';
+            titleDiv.textContent = layer.data.title;
+            var descDiv = document.createElement('div');
+            descDiv.className = 'description';
+            descDiv.textContent = descShort;
+            div.appendChild(titleDiv);
+            div.appendChild(descDiv);
+            li.appendChild(div);
             li.addEventListener('click', function() {
                 suggestionsList.innerHTML = '';
                 suggestionsList.style.display = 'none';
-                
-                resetFilters();
-                markerLayers.forEach(l => map.removeLayer(l.marker));
-
+                // Tüm markerları gizle, sadece seçileni göster
+                markerLayers.forEach(l => {
+                    map.removeLayer(l.marker);
+                });
+                layer.marker.addTo(map);
                 map.flyTo(layer.marker.getLatLng(), 1);
                 layer.marker.openPopup();
-                highlightedMarkers.forEach(function(l) {
-                    l.marker.setIcon(l.originalIcon);
-                });
-                highlightedMarkers = [];
-                layer.marker.setIcon(L.divIcon({
-                    className: 'marker-icon-highlight',
-                    iconSize: [20, 20],
-                    html: ''
-                }));
-                highlightedMarkers.push(layer);
-                layer.marker.addTo(map);
             });
             suggestionsList.appendChild(li);
         });
@@ -452,14 +457,21 @@ function initApp() {
     }
 
     function performSearch(query) {
-        resetFilters();
-        markerLayers.forEach(layer => map.removeLayer(layer.marker));
-        highlightedMarkers = [];
-
         var matchingMarkers = markerLayers.filter(function(layer) {
-            var title = layer.data.title.toLowerCase();
+            var title = layer.data.title.toLowerCase(); 
             var description = layer.data.description.toLowerCase();
             return title.includes(query.toLowerCase()) || description.includes(query.toLowerCase());
+        });
+        if (typeof hideAllFilters !== 'undefined' && hideAllFilters) {
+            hideAllFilters.checked = false;
+            if (typeof updateFilters === 'function') updateFilters();
+        }
+
+        // Önce tüm markerların glow'unu ve görünürlüğünü sıfırla
+        markerLayers.forEach(layer => {
+            var iconDiv = layer.marker.getElement();
+            if (iconDiv) iconDiv.classList.remove('marker-glow-red');
+            map.removeLayer(layer.marker);
         });
 
         if (matchingMarkers.length === 0) {
@@ -467,20 +479,25 @@ function initApp() {
             return;
         }
 
-        matchingMarkers.forEach(function(layer) {
+        // Sadece bulunan markerları göster ve glow ekle
+        matchingMarkers.forEach(layer => {
             layer.marker.addTo(map);
-            layer.marker.setIcon(L.divIcon({
-                className: 'marker-icon-highlight',
-                iconSize: [20, 20],
-                html: ''
-            }));
-            highlightedMarkers.push(layer);
+            var iconDiv = layer.marker.getElement();
+            if (iconDiv) iconDiv.classList.add('marker-glow-red');
         });
 
         if (matchingMarkers.length > 0) {
             var group = new L.featureGroup(matchingMarkers.map(layer => layer.marker));
             map.fitBounds(group.getBounds(), { padding: [50, 50] });
         }
+
+        // 2 saniye sonra glow'u kaldır
+        setTimeout(() => {
+            matchingMarkers.forEach(layer => {
+                var iconDiv = layer.marker.getElement();
+                if (iconDiv) iconDiv.classList.remove('marker-glow-red');
+            });
+        }, 2000);
     }
 
     if (searchInput) {
@@ -624,7 +641,21 @@ function initApp() {
             var username = document.getElementById('username-input').value;
             var password = document.getElementById('password-input').value;
 
-            console.log('Login denemesi: Kullanıcı adı =', username);
+            // Giriş yapılıyor overlay'i göster
+            var overlay = document.createElement('div');
+            overlay.id = 'login-overlay';
+            overlay.style.position = 'fixed';
+            overlay.style.top = '0';
+            overlay.style.left = '0';
+            overlay.style.width = '100vw';
+            overlay.style.height = '100vh';
+            overlay.style.background = 'rgba(0,0,0,0.5)';
+            overlay.style.zIndex = '9999';
+            overlay.style.display = 'flex';
+            overlay.style.alignItems = 'center';
+            overlay.style.justifyContent = 'center';
+            overlay.innerHTML = '<div style="background:#fff;padding:32px 48px;border-radius:18px;font-size:2rem;font-weight:600;color:#007bff;box-shadow:0 2px 16px rgba(0,0,0,0.18);">Giriş yapılıyor...</div>';
+            document.body.appendChild(overlay);
 
             try {
                 const hashedPassword = await hashPassword(password);
@@ -638,26 +669,23 @@ function initApp() {
                 const result = await response.json();
 
                 if (result.success) {
-                    console.log('Giriş başarılı!');
-                    authToken = result.token; // Token'ı kaydet
-                    localStorage.setItem('authToken', authToken); // Local Storage'a kaydet
-                    adminMode = true;
-                    adminToggle.textContent = 'Admin Modu Kapat';
-                    setAdminMode(true); // Hem masaüstü hem mobil panelde butonları günceller
-                    var loginModal = document.getElementById('login-modal');
-                    if (loginModal) loginModal.style.display = 'none';
-                    // Mobil panelde admin moduna geçildiyse paneli tekrar aç
-                    if (isMobile()) {
-                        showMobilePanel();
-                    }
-                    loadMarkers();
+                    // Giriş başarılıysa overlay 2 saniye kalsın, sonra reload
+                    authToken = result.token;
+                    localStorage.setItem('authToken', authToken);
+                    setTimeout(function() {
+                        window.location.reload();
+                    }, 2000);
                 } else {
-                    console.log('Giriş başarısız:', result.message);
-                    loginModal.querySelector('#login-error').textContent = result.message || 'Kullanıcı adı veya şifre yanlış!';
+                    // Başarısızsa overlay'i kaldır, hata mesajı göster
+                    if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
+                    var loginModal = document.getElementById('login-modal');
+                    if (loginModal) loginModal.querySelector('#login-error').textContent = result.message || 'Kullanıcı adı veya şifre yanlış!';
                 }
             } catch (error) {
+                if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
+                var loginModal = document.getElementById('login-modal');
+                if (loginModal) loginModal.querySelector('#login-error').textContent = 'Sunucu bağlantı hatası.';
                 console.error('Hata:', error);
-                loginModal.querySelector('#login-error').textContent = 'Sunucu bağlantı hatası.';
             }
         });
     } else {
@@ -947,6 +975,40 @@ function initApp() {
         document.getElementById('desc-input').value = data.description;
         document.getElementById('latlng-input').value = data.latLng.join(', ');
 
+        // --- Düzenleme modalında Barkod Okut butonu ---
+        const scanBarcodeBtn = document.getElementById('scan-barcode-btn');
+        if (scanBarcodeBtn) {
+            scanBarcodeBtn.onclick = function() {
+                // Barkod okutma modalını aç
+                openBarcodeModal('edit');
+            };
+        }
+
+        // --- Barkod alanı ---
+        const barcodeRow = document.getElementById('barcode-row');
+        const barcodeInput = document.getElementById('barcode-input');
+        const addBarcodeBtn = document.getElementById('add-barcode-btn');
+        const removeBarcodeBtn = document.getElementById('remove-barcode-btn');
+        if (barcodeRow && barcodeInput && addBarcodeBtn && removeBarcodeBtn) {
+            // Sadece admin modunda göster
+            barcodeRow.style.display = (typeof adminMode !== 'undefined' && adminMode) ? 'flex' : 'none';
+            barcodeInput.value = data.barcode || '';
+            addBarcodeBtn.style.display = (!data.barcode) ? 'inline-block' : 'none';
+            removeBarcodeBtn.style.display = (data.barcode) ? 'inline-block' : 'none';
+            addBarcodeBtn.onclick = function() {
+                // Barkod ekle: Modal açılır, kamera ile okutulmuşsa barcodeInput.value atanır
+                // Manuel ekleme yok, sadece handleBarcodeResult ile atanır
+                alert('Barkod eklemek için Barkod Okut butonunu kullanın. Okutulan barkod otomatik atanacaktır.');
+            };
+            removeBarcodeBtn.onclick = function() {
+                if (confirm('Barkodu silmek istediğinize emin misiniz?')) {
+                    barcodeInput.value = '';
+                    addBarcodeBtn.style.display = 'inline-block';
+                    removeBarcodeBtn.style.display = 'none';
+                }
+            };
+        }
+
         // Çoklu sınıf desteği: class artık dizi
         // Tag alanı
         const classTagsDiv = document.getElementById('class-tags');
@@ -1019,7 +1081,7 @@ function initApp() {
                 box.style.border = (color === selectedColor) ? '3px solid #333' : '2px solid #ccc';
                 if (color === selectedColor) {
                     box.style.boxShadow = '0 0 0 3px #007bff';
-                    box.innerHTML = '<svg width="14" height="14" style="position:absolute;top:4px;left:4px;pointer-events:none;" viewBox="0 0 14 14"><polyline points="3,7 6,10 11,4" style="fill:none;stroke:#007bff;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round"/></svg>';
+                    box.innerHTML = '<svg width="14" height="14" style="position:absolute;top:4px;left:4px;pointer-events:none;" viewBox="0 0 14 14"><polyline points="3,7 6,10 11,4" style="fill:none;stroke:#007bff;stroke-width="2.5;stroke-linecap:round;stroke-linejoin:round"/></svg>';
                     box.style.position = 'relative';
                 } else {
                     box.style.boxShadow = '';
@@ -1039,7 +1101,7 @@ function initApp() {
             colorBox.title = color;
             if (color === selectedColor) {
                 colorBox.style.boxShadow = '0 0 0 3px #007bff';
-                colorBox.innerHTML = '<svg width="14" height="14" style="position:absolute;top:4px;left:4px;pointer-events:none;" viewBox="0 0 14 14"><polyline points="3,7 6,10 11,4" style="fill:none;stroke:#007bff;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round"/></svg>';
+                colorBox.innerHTML = '<svg width="14" height="14" style="position:absolute;top:4px;left:4px;pointer-events:none;" viewBox="0 0 14 14"><polyline points="3,7 6,10 11,4" style="fill:none;stroke:#007bff;stroke-width="2.5;stroke-linecap:round;stroke-linejoin:round"/></svg>';
                 colorBox.style.position = 'relative';
             }
             colorBox.onclick = function() {
@@ -1084,7 +1146,8 @@ function initApp() {
                     description: document.getElementById('desc-input').value,
                     images: tempImages,
                     class: markerClasses, // Artık dizi
-                    color: selectedColor
+                    color: selectedColor,
+                    barcode: barcodeInput ? barcodeInput.value : undefined
                 };
 
                 try {
@@ -1294,16 +1357,18 @@ function initApp() {
         }
 
         markerLayers.forEach(layer => {
-            // Çoklu sınıf desteği: class artık dizi
             let markerClasses = Array.isArray(layer.data.class) ? layer.data.class : (layer.data.class ? [layer.data.class] : []);
-            // Seçili tüm filtreler marker'ın class dizisinde varsa göster
-            let isVisible = true;
+            // Seçili tüm filtreler marker'ın class dizisinde varsa true
+            let matchesAll = true;
             for (let filter of activeFilters) {
                 if (!markerClasses.includes(filter)) {
-                    isVisible = false;
+                    matchesAll = false;
                     break;
                 }
             }
+            // Tersine çevirme aktifse: sadece matchesAll olanları gizle, diğerlerini göster
+            // Tersine çevirme kapalıysa: sadece matchesAll olanları göster, diğerlerini gizle
+            let isVisible = inversionActive ? !matchesAll : matchesAll;
             if (isVisible) {
                 layer.marker.addTo(map);
             } else {
@@ -1327,6 +1392,217 @@ function initApp() {
         overlay.style.justifyContent = 'center';
         overlay.innerHTML = '<div style="background:#fff;padding:32px 48px;border-radius:18px;font-size:2rem;font-weight:600;color:#007bff;box-shadow:0 2px 16px rgba(0,0,0,0.18);">Çıkış yapılıyor...</div>';
         document.body.appendChild(overlay);
+    }
+
+    // --- ADMIN MODUNDA BARKOD OKUT BUTONU EKLE ---
+    function addBarcodeScanButton() {
+        if (!adminMode) return;
+        if (document.getElementById('barcode-scan-btn')) return;
+        const btn = document.createElement('button');
+        btn.id = 'barcode-scan-btn';
+        btn.textContent = 'Barkod Okut';
+        btn.style.marginLeft = '12px';
+        btn.onclick = function() { openBarcodeModal('main'); };
+        // Masaüstü admin butonlarının yanına ekle
+        const adminBtns = document.querySelector('.admin-buttons');
+        if (adminBtns) adminBtns.appendChild(btn);
+    }
+    // Admin moda geçince butonu ekle
+    if (authToken) addBarcodeScanButton();
+    // Admin mod değişiminde de çağırılmalı (setAdminMode fonksiyonunda da çağrılabilir)
+
+    // --- BARKOD OKUMA MODALI VE KAMERA ---
+    let barcodeStream = null;
+    // openBarcodeModal: hangi ekrandan çağrıldığını parametreyle alır
+    let barcodeScanContext = 'main';
+    function openBarcodeModal(context) {
+        barcodeScanContext = context || 'main';
+        const modal = document.getElementById('barcode-modal');
+        const video = document.getElementById('barcode-video');
+        const status = document.getElementById('barcode-status');
+        if (!modal || !video) return;
+        modal.style.display = 'block';
+        status.textContent = 'Kamera başlatılıyor...';
+        // Kamera aç
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+            .then(stream => {
+                barcodeStream = stream;
+                video.srcObject = stream;
+                video.play();
+                status.textContent = 'Barkodu çerçeveye hizalayın';
+                scanBarcodeLoop();
+            })
+            .catch(err => {
+                status.textContent = 'Kamera erişimi reddedildi veya desteklenmiyor.';
+            });
+    }
+    // Modal kapatınca kamera durdur
+    document.getElementById('barcode-modal-close').onclick = function() {
+        closeBarcodeModal();
+    };
+    function closeBarcodeModal() {
+        const modal = document.getElementById('barcode-modal');
+        const video = document.getElementById('barcode-video');
+        if (barcodeStream) {
+            barcodeStream.getTracks().forEach(track => track.stop());
+            barcodeStream = null;
+        }
+        if (video) video.srcObject = null;
+        if (modal) modal.style.display = 'none';
+    }
+    // --- jsQR ile barkod okuma döngüsü ---
+    function scanBarcodeLoop() {
+        const video = document.getElementById('barcode-video');
+        const status = document.getElementById('barcode-status');
+        if (!video || video.readyState !== 4) {
+            setTimeout(scanBarcodeLoop, 200);
+            return;
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const code = window.jsQR(imageData.data, canvas.width, canvas.height);
+        if (code) {
+            status.textContent = 'Barkod bulundu: ' + code.data;
+            // Barkod bulunduğunda işlemleri başlat
+            handleBarcodeResult(code.data);
+            closeBarcodeModal();
+            return;
+        }
+        setTimeout(scanBarcodeLoop, 300);
+    }
+    // --- Barkod sonucu işleme (devamı eklenecek) ---
+    function handleBarcodeResult(barcode) {
+        // Barkod eşleşmesi kontrolü
+        const foundIndex = markersData.findIndex(m => m.barcode === barcode);
+        if (foundIndex !== -1) {
+            // Marker bulundu, düzenleme ekranını aç
+            alert('Barkod mevcut bir markera ait. Marker düzenleme ekranı açılıyor.');
+            window.editMarker(foundIndex);
+        } else {
+            if (barcodeScanContext === 'main') {
+                // Ana ekrandan barkod okutulduysa, yeni marker ekleme ekranı aç ve barkodu ata
+                alert('Barkod hiçbir marker ile eşleşmedi. Yeni marker ekleme ekranı açılıyor.');
+                // Yeni marker için boş veri ile modal aç
+                window.openEditModal({
+                    title: '',
+                    description: '',
+                    latLng: [0,0],
+                    images: [],
+                    class: [],
+                    color: undefined,
+                    barcode: barcode
+                }, -1);
+            } else {
+                // Düzenleme modalında barkod okutulduysa, barkod alanına otomatik ata
+                const barcodeInput = document.getElementById('barcode-input');
+                const addBarcodeBtn = document.getElementById('add-barcode-btn');
+                const removeBarcodeBtn = document.getElementById('remove-barcode-btn');
+                if (barcodeInput && addBarcodeBtn && removeBarcodeBtn) {
+                    barcodeInput.value = barcode;
+                    addBarcodeBtn.style.display = 'none';
+                    removeBarcodeBtn.style.display = 'inline-block';
+                }
+                alert('Barkod yeni marker için atanacak şekilde dolduruldu. Marker kaydedilirse bu barkod atanacak.');
+            }
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('DOMContentLoaded tetiklendi');
+        initApp();
+    });
+
+    // Kullanıcı modunda barkod okutma butonunu göster
+    setTimeout(function() {
+        if (typeof adminMode !== 'undefined' && !adminMode) {
+            var userBarcodeBtn = document.getElementById('user-barcode-btn');
+            if (userBarcodeBtn) {
+                userBarcodeBtn.style.display = 'flex';
+                userBarcodeBtn.onclick = function() {
+                    openUserBarcodeModal();
+                };
+            }
+            var userBarcodeModalClose = document.getElementById('user-barcode-modal-close');
+            if (userBarcodeModalClose) {
+                userBarcodeModalClose.onclick = closeUserBarcodeModal;
+            }
+        }
+    }, 300);
+
+    // Kullanıcı modunda barkod okutma modalı ve fonksiyonu (admin modundan bağımsız)
+    let userBarcodeStream = null;
+    function openUserBarcodeModal() {
+        var modal = document.getElementById('user-barcode-modal');
+        var video = document.getElementById('user-barcode-video');
+        var status = document.getElementById('user-barcode-status');
+        if (!modal || !video) return;
+        modal.style.display = 'block';
+        status.textContent = 'Kamera başlatılıyor...';
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+            .then(function(stream) {
+                userBarcodeStream = stream;
+                video.srcObject = stream;
+                video.play();
+                status.textContent = 'Barkodu çerçeveye hizalayın';
+                scanUserBarcodeLoop();
+            })
+            .catch(function(err) {
+                status.textContent = 'Kamera erişimi reddedildi veya desteklenmiyor.';
+            });
+    }
+    function closeUserBarcodeModal() {
+        var modal = document.getElementById('user-barcode-modal');
+        var video = document.getElementById('user-barcode-video');
+        if (userBarcodeStream) {
+            userBarcodeStream.getTracks().forEach(function(track) { track.stop(); });
+            userBarcodeStream = null;
+        }
+        if (video) video.srcObject = null;
+        if (modal) modal.style.display = 'none';
+    }
+    function scanUserBarcodeLoop() {
+        var video = document.getElementById('user-barcode-video');
+        var status = document.getElementById('user-barcode-status');
+        if (!video || video.readyState !== 4) {
+            setTimeout(scanUserBarcodeLoop, 200);
+            return;
+        }
+        var canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        var ctx = canvas.getContext('2d');
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        var imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        var code = window.jsQR(imageData.data, canvas.width, canvas.height);
+        if (code) {
+            status.textContent = 'Barkod bulundu: ' + code.data;
+            handleUserBarcodeResult(code.data);
+            closeUserBarcodeModal();
+            return;
+        }
+        setTimeout(scanUserBarcodeLoop, 300);
+    }
+    function handleUserBarcodeResult(barcode) {
+        // Sadece kullanıcı modunda: marker eşleşirse haritayı ortala ve zoomla, yoksa uyarı ver
+        var foundIndex = markersData.findIndex(function(m) { return m.barcode === barcode; });
+        if (foundIndex !== -1) {
+            var markerObj = markerLayers[foundIndex];
+            var marker = markerObj && markerObj.marker ? markerObj.marker : null;
+            if (marker && marker.getLatLng) {
+                map.setView(marker.getLatLng(), 1, { animate: true });
+                if (marker._icon) {
+                    marker._icon.style.transition = 'box-shadow 0.3s';
+                    marker._icon.style.boxShadow = '0 0 0 6px #00c85388';
+                    setTimeout(function() { marker._icon.style.boxShadow = ''; }, 1200);
+                }
+            }
+        } else {
+            alert('Barkoda ait marker bulunamadı.');
+        }
     }
 }
 
