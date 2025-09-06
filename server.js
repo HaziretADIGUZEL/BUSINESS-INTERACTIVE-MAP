@@ -1,4 +1,3 @@
-require('dotenv').config(); // .env dosyasını yükle
 const express = require('express');
 const multer = require('multer');
 const path = require('path');
@@ -177,15 +176,7 @@ app.delete('/api/classes/:name', authenticateJWT, async (req, res) => {
     }
 });
 
-
-// Render ortamında mı çalışıyoruz?
-const isRender = process.env.RENDER === 'true' || process.env.RENDER_EXTERNAL_URL;
 const port = process.env.PORT || 8000;
-
 app.listen(port, () => {
-    if (isRender) {
-        console.log('Render ortamında başlatıldı.');
-    } else {
-        console.log(`Yerel sunucu http://localhost:${port} adresinde çalışıyor`);
-    }
+    console.log(`Sunucu http://localhost:${port} adresinde çalışıyor`);
 });
