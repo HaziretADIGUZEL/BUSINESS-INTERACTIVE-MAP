@@ -286,14 +286,15 @@ if (scanBarcodeBtnMobile) {
                 `<path d="M11 29 C3 18 1 14 1 9.5 A10 10 0 1 1 21 9.5 C21 14 19 18 11 29 Z" fill="${markerColor}" stroke="#222" stroke-width="1.5"/>` +
                 '<circle cx="11" cy="11" r="4.5" fill="#fff" stroke="#222" stroke-width="1"/>' +
                 '</g></svg>';
+            // Marker draggable özelliği veritabanından veya modalden gelir
             var marker = L.marker([markerData.latLng[0], markerData.latLng[1]], {
                 icon: L.divIcon({
                     className: 'marker-icon',
                     iconSize: [15, 21],
-                    iconAnchor: [7.5, 20], // Sivri uç tam konumda
+                    iconAnchor: [7.5, 20],
                     html: pinSVG
                 }),
-                draggable: adminMode,
+                draggable: markerData.draggable === true, // true ise sürüklenebilir, değilse kilitli
                 autoPan: true,
                 autoPanSpeed: 100
             }).addTo(map);
@@ -447,7 +448,7 @@ if (scanBarcodeBtnMobile) {
                     map.removeLayer(l.marker);
                 });
                 layer.marker.addTo(map);
-                map.flyTo(layer.marker.getLatLng(), 1);
+                map.flyTo(layer.marker.getLatLng(), -1);
                 layer.marker.openPopup();
             });
             suggestionsList.appendChild(li);
@@ -486,7 +487,11 @@ if (scanBarcodeBtnMobile) {
             if (iconDiv) iconDiv.classList.add('marker-glow-red');
         });
 
-        if (matchingMarkers.length > 0) {
+        if (matchingMarkers.length === 1) {
+            // Tek marker bulunduysa, çok yakın zoom yerine daha uygun bir zoom kullan
+            map.flyTo(matchingMarkers[0].marker.getLatLng(), -1); // -1 veya initialZoom kullanılabilir
+            matchingMarkers[0].marker.openPopup();
+        } else if (matchingMarkers.length > 1) {
             var group = new L.featureGroup(matchingMarkers.map(layer => layer.marker));
             map.fitBounds(group.getBounds(), { padding: [50, 50] });
         }
@@ -964,6 +969,9 @@ if (scanBarcodeBtnMobile) {
 
     // Düzenleme Modal Aç
     window.openEditModal = async function(data, index) {
+    // --- Konum kilitle kutucuğu için orijinal değerleri yedekle ---
+    let originalDraggable = (typeof data.draggable === 'boolean') ? data.draggable : false;
+    let originalCheckboxState = !(data.draggable === true);
         var editModal = document.getElementById('edit-modal');
         if (!editModal) return;
         editModal.style.display = 'block';
@@ -971,9 +979,76 @@ if (scanBarcodeBtnMobile) {
         
         loadClassList();
 
+
         document.getElementById('title-input').value = data.title;
         document.getElementById('desc-input').value = data.description;
         document.getElementById('latlng-input').value = data.latLng.join(', ');
+
+        // --- Konumu Kilitle kutucuğu ---
+        let lockRow = document.getElementById('marker-lock-row');
+        if (lockRow) lockRow.remove();
+        lockRow = document.createElement('div');
+        lockRow.id = 'marker-lock-row';
+        lockRow.style.display = 'flex';
+        lockRow.style.alignItems = 'center';
+        lockRow.style.gap = '8px';
+        lockRow.style.margin = '8px 0 8px 0';
+        const lockCheckbox = document.createElement('input');
+        lockCheckbox.type = 'checkbox';
+        lockCheckbox.id = 'marker-lock-checkbox';
+        lockCheckbox.checked = !(data.draggable === true); // true ise kilitli değil, false/undefined ise kilitli
+        const lockLabel = document.createElement('label');
+        lockLabel.htmlFor = 'marker-lock-checkbox';
+        lockLabel.textContent = 'Konumu Kilitle (Sürüklemeyi Engelle)';
+        lockRow.appendChild(lockCheckbox);
+        lockRow.appendChild(lockLabel);
+        // LatLng input'un hemen altına ekle
+        const latlngInput = document.getElementById('latlng-input');
+        if (latlngInput && latlngInput.parentNode) {
+            latlngInput.parentNode.insertBefore(lockRow, latlngInput.nextSibling);
+        }
+
+        // Modal açıldığında marker'ı kilitle/det kilidini aç
+        let markerObj = (typeof index === 'number' && index >= 0) ? markerLayers[index] : null;
+        if (markerObj && markerObj.marker) {
+            markerObj.marker.dragging.disable();
+            if (!lockCheckbox.checked) markerObj.marker.dragging.enable();
+        }
+        lockCheckbox.addEventListener('change', function() {
+            if (markerObj && markerObj.marker) {
+                if (this.checked) {
+                    markerObj.marker.dragging.disable();
+                } else {
+                    markerObj.marker.dragging.enable();
+                }
+            }
+        });
+
+        // Modal kapatılırsa (kaydetmeden), marker ve kutucuk eski haline döner
+        function revertLockState() {
+            if (markerObj && markerObj.marker) {
+                if (originalDraggable) {
+                    markerObj.marker.dragging.enable();
+                } else {
+                    markerObj.marker.dragging.disable();
+                }
+            }
+            lockCheckbox.checked = originalCheckboxState;
+        }
+
+        // Modal kapatma butonlarını bul ve revert işlemini ekle
+        const closeBtns = editModal.querySelectorAll('.close');
+        closeBtns.forEach(function(btn) {
+            // Önce eski eventleri kaldır
+            btn.onclick = null;
+            btn.addEventListener('click', function() {
+                revertLockState();
+                editModal.style.display = 'none';
+                // Admin modalı tekrar açılacaksa
+                var adminModal = document.getElementById('admin-modal');
+                if (adminModal) adminModal.style.display = 'block';
+            });
+        });
 
         // --- Düzenleme modalında Barkod Okut butonu ---
         const scanBarcodeBtn = document.getElementById('scan-barcode-btn');
@@ -1140,6 +1215,7 @@ if (scanBarcodeBtnMobile) {
                     return;
                 }
 
+
                 var newData = {
                     latLng: document.getElementById('latlng-input').value.split(', ').map(Number),
                     title: document.getElementById('title-input').value,
@@ -1147,7 +1223,8 @@ if (scanBarcodeBtnMobile) {
                     images: tempImages,
                     class: markerClasses, // Artık dizi
                     color: selectedColor,
-                    barcode: barcodeInput ? barcodeInput.value : undefined
+                    barcode: barcodeInput ? barcodeInput.value : undefined,
+                    draggable: !lockCheckbox.checked // Kilitli değilse draggable true
                 };
 
                 try {
@@ -1535,11 +1612,21 @@ if (scanBarcodeBtnMobile) {
 
     // Kullanıcı modunda barkod okutma modalı ve fonksiyonu (admin modundan bağımsız)
     let userBarcodeStream = null;
+    let hideAllFiltersAutoDisabled = false;
     function openUserBarcodeModal() {
         var modal = document.getElementById('user-barcode-modal');
         var video = document.getElementById('user-barcode-video');
         var status = document.getElementById('user-barcode-status');
         if (!modal || !video) return;
+        // Hepsini gizle otomatik kaldır
+        var hideAllFilters = document.getElementById('hide-all-filters');
+        if (hideAllFilters && hideAllFilters.checked) {
+            hideAllFilters.checked = false;
+            if (typeof updateFilters === 'function') updateFilters();
+            hideAllFiltersAutoDisabled = true;
+        } else {
+            hideAllFiltersAutoDisabled = false;
+        }
         modal.style.display = 'block';
         status.textContent = 'Kamera başlatılıyor...';
         navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
@@ -1594,6 +1681,7 @@ if (scanBarcodeBtnMobile) {
             var marker = markerObj && markerObj.marker ? markerObj.marker : null;
             if (marker && marker.getLatLng) {
                 map.setView(marker.getLatLng(), 1, { animate: true });
+                marker.openPopup();
                 if (marker._icon) {
                     marker._icon.style.transition = 'box-shadow 0.3s';
                     marker._icon.style.boxShadow = '0 0 0 6px #00c85388';
@@ -1601,6 +1689,12 @@ if (scanBarcodeBtnMobile) {
                 }
             }
         } else {
+            // Sonuç yoksa ve hepsini gizle otomatik kaldırıldıysa tekrar aktif et
+            var hideAllFilters = document.getElementById('hide-all-filters');
+            if (hideAllFilters && hideAllFiltersAutoDisabled) {
+                hideAllFilters.checked = true;
+                if (typeof updateFilters === 'function') updateFilters();
+            }
             alert('Barkoda ait marker bulunamadı.');
         }
     }
@@ -1698,11 +1792,5 @@ if (manageClassesBtnMobile) {
     });
 }
 
-document.querySelectorAll('.modal .close').forEach(function(closeBtn) {
-    closeBtn.addEventListener('click', function() {
-        var modal = closeBtn.closest('.modal');
-        if (modal) {
-            closeModal(modal.id);
-        }
-    });
-});
+
+// Modal kapatma işlemleri her modalın kendi içinde yönetiliyor (ör: editModal için yukarıda)
