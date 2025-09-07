@@ -105,17 +105,6 @@
     position: relative;
     padding-left: 44px;
 }
-#scan-barcode-btn::before {
-    content: '';
-    display: inline-block;
-    position: absolute;
-    left: 16px;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 22px;
-    height: 22px;
-    background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24"><rect x="2" y="4" width="2" height="16" fill="white"/><rect x="20" y="4" width="2" height="16" fill="white"/><rect x="7" y="4" width="2" height="16" fill="white"/><rect x="15" y="4" width="2" height="16" fill="white"/><rect x="11" y="4" width="2" height="16" fill="%2343a047"/></svg>') no-repeat center/22px 22px;
-}
 #scan-barcode-btn:hover {
     background: #388e3c;
 }
