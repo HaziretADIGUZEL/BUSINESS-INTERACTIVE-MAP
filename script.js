@@ -1408,16 +1408,31 @@ if (advancedEditBtnMobile) {
             }
         });
     // --- Sade değişiklik uyarı sistemi ---
-    let originalData = JSON.stringify({
-        title: data.title || '',
-        description: data.description || '',
-        latLng: (data.latLng || []).join(','),
-        class: Array.isArray(data.class) ? data.class.slice().sort().join(',') : (data.class || ''),
-        color: data.color || '',
-        barcode: data.barcode || '',
-        images: (data.images || []).join(','),
-        draggable: data.draggable === true ? '1' : '0'
-    });
+    let originalData;
+    setTimeout(() => {
+        originalData = JSON.stringify({
+            title: document.getElementById('title-input').value || '',
+            description: document.getElementById('desc-input').value || '',
+            latLng: document.getElementById('latlng-input').value || '',
+            class: (() => {
+                const tags = document.querySelectorAll('#class-tags span');
+                return Array.from(tags).map(t => t.childNodes[0].textContent.trim()).sort().join(',');
+            })(),
+            color: (() => {
+                const colorRow = document.getElementById('marker-color-row');
+                if (!colorRow) return '';
+                const selected = Array.from(colorRow.children).find(box => box.style && box.style.boxShadow && box.style.boxShadow.includes('#007bff'));
+                return selected ? selected.style.background : '';
+            })(),
+            barcode: (document.getElementById('barcode-input') || {}).value || '',
+            images: (() => {
+                const imgs = document.querySelectorAll('#image-list img');
+                return Array.from(imgs).map(img => img.src).join(',');
+            })(),
+            draggable: document.getElementById('marker-lock-checkbox') && !document.getElementById('marker-lock-checkbox').checked ? '1' : '0'
+        });
+        checkDirty();
+    }, 10);
     let isDirty = false;
     function checkDirty() {
         let currentData = JSON.stringify({
