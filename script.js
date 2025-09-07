@@ -231,11 +231,17 @@ function initApp() {
             var showAdminPanelMobile = document.getElementById('show-admin-panel-mobile');
             var manageClassesBtnMobile = document.getElementById('manage-classes-btn-mobile');
             var scanBarcodeBtnMobile = document.getElementById('scan-barcode-btn-mobile');
+            var advancedEditBtnMobile = document.getElementById('advanced-edit-btn-mobile');
             if (adminToggleMobile) adminToggleMobile.style.display = 'none';
             if (closeAdminMobile) closeAdminMobile.style.display = 'block';
             if (showAdminPanelMobile) showAdminPanelMobile.style.display = 'block';
             if (manageClassesBtnMobile) manageClassesBtnMobile.style.display = 'block';
             if (scanBarcodeBtnMobile) scanBarcodeBtnMobile.style.display = 'block';
+            if (advancedEditBtnMobile) advancedEditBtnMobile.style.display = 'block';
+
+            // Gelişmiş düzenleme butonunu göster
+            var advancedEditBtn = document.getElementById('advanced-edit-btn');
+            if (advancedEditBtn) advancedEditBtn.style.display = 'inline-block';
         } else {
             document.getElementById('admin-toggle').textContent = 'Admin Modu';
             document.getElementById('show-admin-panel').style.display = 'none';
@@ -246,18 +252,35 @@ function initApp() {
             var showAdminPanelMobile = document.getElementById('show-admin-panel-mobile');
             var manageClassesBtnMobile = document.getElementById('manage-classes-btn-mobile');
             var scanBarcodeBtnMobile = document.getElementById('scan-barcode-btn-mobile');
+            var advancedEditBtnMobile = document.getElementById('advanced-edit-btn-mobile');
             if (adminToggleMobile) adminToggleMobile.style.display = 'block';
             if (closeAdminMobile) closeAdminMobile.style.display = 'none';
             if (showAdminPanelMobile) showAdminPanelMobile.style.display = 'none';
             if (manageClassesBtnMobile) manageClassesBtnMobile.style.display = 'none';
             if (scanBarcodeBtnMobile) scanBarcodeBtnMobile.style.display = 'none';
+            if (advancedEditBtnMobile) advancedEditBtnMobile.style.display = 'none';
+
+            // Gelişmiş düzenleme butonunu gizle ve modalı kapat
+            var advancedEditBtn = document.getElementById('advanced-edit-btn');
+            var advancedEditModal = document.getElementById('advanced-edit-modal');
+            if (advancedEditBtn) advancedEditBtn.style.display = 'none';
+            if (advancedEditModal) advancedEditModal.style.display = 'none';
         }
 // Mobil admin paneldeki Barkod Okut butonuna işlev ekle
+// Mobil admin paneldeki Barkod Okut ve Gelişmiş Düzenleme butonlarına işlev ekle
 var scanBarcodeBtnMobile = document.getElementById('scan-barcode-btn-mobile');
 if (scanBarcodeBtnMobile) {
     scanBarcodeBtnMobile.addEventListener('click', function() {
         // Barkod okutma modalını aç
         openBarcodeModal('main');
+        hideMobilePanel();
+    });
+}
+var advancedEditBtnMobile = document.getElementById('advanced-edit-btn-mobile');
+if (advancedEditBtnMobile) {
+    advancedEditBtnMobile.addEventListener('click', function() {
+        var advancedEditModal = document.getElementById('advanced-edit-modal');
+        if (advancedEditModal) advancedEditModal.style.display = 'block';
         hideMobilePanel();
     });
 }
@@ -443,11 +466,15 @@ if (scanBarcodeBtnMobile) {
             li.addEventListener('click', function() {
                 suggestionsList.innerHTML = '';
                 suggestionsList.style.display = 'none';
-                // Tüm markerları gizle, sadece seçileni göster
+                // Tüm markerların glow'unu kaldır
                 markerLayers.forEach(l => {
+                    var iconDiv = l.marker.getElement();
+                    if (iconDiv) iconDiv.classList.remove('marker-glow-red');
                     map.removeLayer(l.marker);
                 });
                 layer.marker.addTo(map);
+                var iconDiv = layer.marker.getElement();
+                if (iconDiv) iconDiv.classList.add('marker-glow-red');
                 map.flyTo(layer.marker.getLatLng(), -1);
                 layer.marker.openPopup();
             });
@@ -496,13 +523,7 @@ if (scanBarcodeBtnMobile) {
             map.fitBounds(group.getBounds(), { padding: [50, 50] });
         }
 
-        // 2 saniye sonra glow'u kaldır
-        setTimeout(() => {
-            matchingMarkers.forEach(layer => {
-                var iconDiv = layer.marker.getElement();
-                if (iconDiv) iconDiv.classList.remove('marker-glow-red');
-            });
-        }, 2000);
+    // Glow başka işlem yapılana kadar kalacak
     }
 
     if (searchInput) {
@@ -589,9 +610,372 @@ if (scanBarcodeBtnMobile) {
                 if (loginModal) loginModal.querySelector('#login-error').textContent = '';
             }
         });
-    } else {
-        console.error('admin-toggle bulunamadı!');
     }
+
+    // --- Gelişmiş Düzenleme Modalı Açma/Kapama ---
+    var advancedEditBtn = document.getElementById('advanced-edit-btn');
+    var advancedEditModal = document.getElementById('advanced-edit-modal');
+    var advancedEditClose = document.getElementById('advanced-edit-close');
+    var advancedEditStepSelect = document.getElementById('advanced-edit-step-select');
+    var advancedEditMarkersPanel = document.getElementById('advanced-edit-markers-panel');
+    var advancedEditClassesPanel = document.getElementById('advanced-edit-classes-panel');
+    var advancedEditMarkersBtn = document.getElementById('advanced-edit-markers-btn');
+    var advancedEditClassesBtn = document.getElementById('advanced-edit-classes-btn');
+
+    if (advancedEditBtn && advancedEditModal && advancedEditClose) {
+        advancedEditBtn.addEventListener('click', function() {
+            advancedEditModal.style.display = 'block';
+            // Sadece seçim ekranı gösterilsin, diğer paneller gizli
+            if (advancedEditStepSelect) advancedEditStepSelect.style.display = 'flex';
+            if (advancedEditMarkersPanel) advancedEditMarkersPanel.style.display = 'none';
+            if (advancedEditClassesPanel) advancedEditClassesPanel.style.display = 'none';
+        });
+        advancedEditClose.addEventListener('click', function() {
+            advancedEditModal.style.display = 'none';
+        });
+        // Markerları Düzenle butonu işlevi
+        if (advancedEditMarkersBtn) {
+            advancedEditMarkersBtn.addEventListener('click', function() {
+                if (advancedEditStepSelect) advancedEditStepSelect.style.display = 'none';
+                if (advancedEditMarkersPanel) {
+                    advancedEditMarkersPanel.style.display = 'block';
+                    // Panel HTML: filtre üstte, marker listesi altta
+                    advancedEditMarkersPanel.innerHTML = `
+                        <button id="adv-marker-back-btn" style="margin-bottom:18px;">&larr; Geri</button>
+                        <div style="background:#f7f7f7;padding:18px 16px 18px 18px;border-radius:12px;max-width:900px;margin:auto;">
+                            <h3>Marker Filtrele</h3>
+                            <div style="display:flex;flex-wrap:wrap;gap:18px 32px;align-items:flex-end;">
+                                <label>Başlık: <input type="text" id="adv-marker-title" style="width:140px;margin-bottom:6px;"></label>
+                                <label>Açıklama: <input type="text" id="adv-marker-desc" style="width:140px;margin-bottom:6px;"></label>
+                                <div style="position:relative;min-width:180px;">
+                                    <label>Sınıf:</label>
+                                    <div id="adv-marker-class-chips" style="display:flex;flex-wrap:wrap;gap:4px 6px;margin-bottom:4px;"></div>
+                                    <input type="text" id="adv-marker-class-input" autocomplete="off" placeholder="Sınıf ara/seç..." style="width:140px;padding:4px 8px;border-radius:7px;border:1px solid #ccc;">
+                                    <div id="adv-marker-class-dropdown" style="display:none;position:absolute;top:48px;left:0;width:140px;max-height:120px;overflow:auto;background:#fff;border:1px solid #ccc;border-radius:7px;z-index:10;"></div>
+                                </div>
+                                <label>Barkod Durumu: <select id="adv-marker-barcode-status" style="width:110px;margin-bottom:6px;">
+                                    <option value="">Hepsi</option>
+                                    <option value="var">Barkod Var</option>
+                                    <option value="yok">Barkod Yok</option>
+                                </select></label>
+                                <label>Renk: <select id="adv-marker-color" style="width:90px;margin-bottom:6px;"></select></label>
+                                <label>Görsel Adedi: <input type="number" id="adv-marker-image-count" min="0" style="width:60px;margin-bottom:6px;"></label>
+                                <button id="adv-marker-filter-btn" style="margin-top:0;">Filtrele</button>
+                                <button id="adv-marker-reset-btn" style="margin-top:0;margin-left:8px;">Sıfırla</button>
+                            </div>
+                        </div>
+                        <div style="flex:2 1 480px;min-width:380px;max-width:900px;background:#f7f7f7;padding:18px 16px 18px 18px;border-radius:12px;margin:24px auto 0 auto;">
+                            <h3>Markerlar</h3>
+                            <div style="margin-bottom:10px;">
+                                <button id="adv-marker-select-all">Tümünü Seç</button>
+                                <button id="adv-marker-deselect-all">Seçimi Kaldır</button>
+                                <button id="adv-marker-delete-selected" style="background:#e53935;color:#fff;">Seçili Markerları Sil</button>
+                            </div>
+                            <ul id="adv-marker-list" style="max-height:48vh;overflow:auto;padding:0;list-style:none;"></ul>
+                        </div>
+                    `;
+                    // Geri butonu işlevi
+                    var backBtn = document.getElementById('adv-marker-back-btn');
+                    if (backBtn) backBtn.onclick = function() {
+                        advancedEditMarkersPanel.style.display = 'none';
+                        advancedEditStepSelect.style.display = 'flex';
+                    };
+                    // Sınıf autocomplete çoklu seçim işlevi
+                    let selectedClasses = [];
+                    const classInput = document.getElementById('adv-marker-class-input');
+                    const classDropdown = document.getElementById('adv-marker-class-dropdown');
+                    const classChips = document.getElementById('adv-marker-class-chips');
+                    function renderClassDropdown(filter = '') {
+                        if (!Array.isArray(classesData)) return;
+                        let filtered = classesData.filter(cls => !selectedClasses.includes(cls) && cls.toLowerCase().includes(filter.toLowerCase()));
+                        if (filtered.length === 0) {
+                            classDropdown.style.display = 'none';
+                            return;
+                        }
+                        classDropdown.innerHTML = '';
+                        filtered.forEach(cls => {
+                            let div = document.createElement('div');
+                            div.textContent = cls;
+                            div.style.padding = '6px 10px';
+                            div.style.cursor = 'pointer';
+                            div.onmousedown = function(e) {
+                                e.preventDefault();
+                                selectedClasses.push(cls);
+                                renderClassChips();
+                                classDropdown.style.display = 'none';
+                                classInput.value = '';
+                            };
+                            classDropdown.appendChild(div);
+                        });
+                        classDropdown.style.width = '210px'; // 140px + %50
+                        classDropdown.style.maxHeight = '180px'; // 120px + %50
+                        classDropdown.style.display = 'block';
+                    }
+                    // Tıklanınca da aç
+                    classInput.addEventListener('click', function() {
+                        renderClassDropdown(this.value);
+                    });
+                    function renderClassChips() {
+                        classChips.innerHTML = '';
+                        selectedClasses.forEach(cls => {
+                            let chip = document.createElement('span');
+                            chip.textContent = cls;
+                            chip.style.background = '#e0e0e0';
+                            chip.style.borderRadius = '8px';
+                            chip.style.padding = '2px 8px';
+                            chip.style.marginRight = '3px';
+                            chip.style.display = 'inline-flex';
+                            chip.style.alignItems = 'center';
+                            chip.style.fontSize = '13px';
+                            let x = document.createElement('span');
+                            x.textContent = '×';
+                            x.style.marginLeft = '6px';
+                            x.style.cursor = 'pointer';
+                            x.onclick = function() {
+                                selectedClasses = selectedClasses.filter(c => c !== cls);
+                                renderClassChips();
+                            };
+                            chip.appendChild(x);
+                            classChips.appendChild(chip);
+                        });
+                    }
+                    classInput.addEventListener('focus', function() {
+                        renderClassDropdown('');
+                    });
+                    classInput.addEventListener('input', function() {
+                        renderClassDropdown(this.value);
+                    });
+                    classInput.addEventListener('blur', function() {
+                        setTimeout(() => { classDropdown.style.display = 'none'; }, 120);
+                    });
+                    classDropdown.addEventListener('mousedown', function(e) { e.preventDefault(); });
+                    renderClassChips();
+                    var colorSelect = document.getElementById('adv-marker-color');
+                    if (colorSelect) {
+                        colorSelect.innerHTML = '<option value="">Hepsi</option>';
+                        const markerColors = [
+                            '#e6194b','#3cb44b','#ffe119','#4363d8','#f58231','#911eb4','#46f0f0','#f032e6',
+                            '#bcf60c','#fabebe','#008080','#e6beff','#9a6324','#fffac8','#800000','#aaffc3',
+                            '#808000','#ffd8b1','#000075','#808080','#ffffff','#000000','#a9a9a9','#ff69b4'
+                        ];
+                        markerColors.forEach(function(color) {
+                            var opt = document.createElement('option');
+                            opt.value = color;
+                            opt.textContent = color;
+                            opt.style.background = color;
+                            colorSelect.appendChild(opt);
+                        });
+                    }
+                    // Markerları listele (filtre uygulanmadan hepsi)
+                    function renderMarkerList(filteredMarkers) {
+                        var list = document.getElementById('adv-marker-list');
+                        if (!list) return;
+                        list.innerHTML = '';
+                        (filteredMarkers || markersData).forEach(function(marker, idx) {
+                            var li = document.createElement('li');
+                            li.style.display = 'flex';
+                            li.style.alignItems = 'center';
+                            li.style.justifyContent = 'space-between';
+                            li.style.padding = '6px 0';
+                            li.innerHTML = `
+                                <label style="display:flex;align-items:center;gap:8px;">
+                                    <input type="checkbox" class="adv-marker-checkbox" data-idx="${idx}">
+                                    <span style="font-weight:600;">${marker.title}</span>
+                                    <span style="font-size:12px;color:#666;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${marker.description || ''}</span>
+                                </label>
+                                <button class="adv-marker-edit-btn" data-idx="${idx}" style="background:#ffc107;color:#222;border-radius:8px;padding:4px 12px;">Düzenle</button>
+                            `;
+                            list.appendChild(li);
+                        });
+                    }
+                    renderMarkerList(markersData);
+                    // Filtrele butonu işlevi
+                    document.getElementById('adv-marker-filter-btn').onclick = function() {
+                        var title = document.getElementById('adv-marker-title').value.trim().toLowerCase();
+                        var desc = document.getElementById('adv-marker-desc').value.trim().toLowerCase();
+                        // selectedClasses dizisi chipli autocomplete'den geliyor
+                        var barcodeStatus = document.getElementById('adv-marker-barcode-status').value;
+                        var color = document.getElementById('adv-marker-color').value;
+                        var imgCount = document.getElementById('adv-marker-image-count').value;
+                        var filtered = markersData.filter(function(m) {
+                            let ok = true;
+                            if (title && !m.title.toLowerCase().includes(title)) ok = false;
+                            if (desc && (!m.description || !m.description.toLowerCase().includes(desc))) ok = false;
+                            if (selectedClasses.length > 0 && (!m.class || !selectedClasses.every(cls => m.class.includes(cls)))) ok = false;
+                            if (barcodeStatus === 'var' && !m.barcode) ok = false;
+                            if (barcodeStatus === 'yok' && m.barcode) ok = false;
+                            if (color && m.color !== color) ok = false;
+                            if (imgCount !== '' && Number(imgCount) >= 0) {
+                                let count = Array.isArray(m.images) ? m.images.length : 0;
+                                if (Number(imgCount) === 0 && count > 0) ok = false;
+                                if (Number(imgCount) > 0 && count !== Number(imgCount)) ok = false;
+                            }
+                            return ok;
+                        });
+                        renderMarkerList(filtered);
+                    };
+                    // Sıfırla butonu işlevi
+                    document.getElementById('adv-marker-reset-btn').onclick = function() {
+                        document.getElementById('adv-marker-title').value = '';
+                        document.getElementById('adv-marker-desc').value = '';
+                        selectedClasses = [];
+                        renderClassChips();
+                        document.getElementById('adv-marker-barcode-status').value = '';
+                        document.getElementById('adv-marker-color').value = '';
+                        document.getElementById('adv-marker-image-count').value = '';
+                        renderMarkerList(markersData);
+                    };
+                    // Tümünü Seç/Kaldır işlevleri
+                    document.getElementById('adv-marker-select-all').onclick = function() {
+                        document.querySelectorAll('.adv-marker-checkbox').forEach(cb => cb.checked = true);
+                    };
+                    document.getElementById('adv-marker-deselect-all').onclick = function() {
+                        document.querySelectorAll('.adv-marker-checkbox').forEach(cb => cb.checked = false);
+                    };
+                    // Toplu silme işlevi
+                    document.getElementById('adv-marker-delete-selected').onclick = async function() {
+                        var selected = Array.from(document.querySelectorAll('.adv-marker-checkbox:checked')).map(cb => Number(cb.getAttribute('data-idx')));
+                        if (selected.length === 0) { alert('Seçili marker yok!'); return; }
+                        if (!confirm('Seçili markerları silmek istediğinize emin misiniz?')) return;
+                        for (let idx of selected) {
+                            if (markersData[idx] && markersData[idx].id) {
+                                await deleteMarkerFromDB(markersData[idx].id);
+                            }
+                        }
+                        await loadMarkersFromDB();
+                        renderMarkerList(markersData);
+                    };
+                    // Düzenle butonları işlevi
+                    advancedEditMarkersPanel.addEventListener('click', function(e) {
+                        if (e.target.classList.contains('adv-marker-edit-btn')) {
+                            var idx = Number(e.target.getAttribute('data-idx'));
+                            if (!isNaN(idx)) {
+                                window.editMarker(idx);
+                                advancedEditModal.style.display = 'none';
+                            }
+                        }
+                    });
+                }
+                if (advancedEditClassesPanel) advancedEditClassesPanel.style.display = 'none';
+            });
+        }
+        // Sınıfları Düzenle butonu işlevi
+        if (advancedEditClassesBtn) {
+            advancedEditClassesBtn.addEventListener('click', function() {
+                if (advancedEditStepSelect) advancedEditStepSelect.style.display = 'none';
+                if (advancedEditClassesPanel) {
+                    advancedEditClassesPanel.style.display = 'block';
+                    advancedEditClassesPanel.innerHTML = `
+                        <button id="adv-class-back-btn" style="margin-bottom:18px;">&larr; Geri</button>
+                        <div style="background:#f7f7f7;padding:18px 16px 18px 18px;border-radius:12px;max-width:600px;margin:auto;">
+                            <h3>Sınıf Ara</h3>
+                            <input type="text" id="adv-class-search" placeholder="Sınıf adı ara..." style="width:220px;padding:6px 10px;border-radius:7px;border:1px solid #ccc;margin-bottom:12px;">
+                            <div style="margin-bottom:10px;">
+                                <button id="adv-class-select-all">Tümünü Seç</button>
+                                <button id="adv-class-deselect-all">Seçimi Kaldır</button>
+                                <button id="adv-class-delete-selected" style="background:#e53935;color:#fff;">Seçili Sınıfları Sil</button>
+                            </div>
+                            <ul id="adv-class-list" style="max-height:48vh;overflow:auto;padding:0;list-style:none;"></ul>
+                        </div>
+                    `;
+                    // Geri butonu işlevi
+                    var backBtn = document.getElementById('adv-class-back-btn');
+                    if (backBtn) backBtn.onclick = function() {
+                        advancedEditClassesPanel.style.display = 'none';
+                        advancedEditStepSelect.style.display = 'flex';
+                    };
+                    // Sınıf listesi işlevleri
+                    let filteredClasses = classesData.slice();
+                    function renderClassList() {
+                        var list = document.getElementById('adv-class-list');
+                        if (!list) return;
+                        list.innerHTML = '';
+                        filteredClasses.forEach(function(cls, idx) {
+                            var li = document.createElement('li');
+                            li.style.display = 'flex';
+                            li.style.alignItems = 'center';
+                            li.style.justifyContent = 'space-between';
+                            li.style.padding = '6px 0';
+                            li.innerHTML = `
+                                <label style="display:flex;align-items:center;gap:8px;">
+                                    <input type="checkbox" class="adv-class-checkbox" data-idx="${idx}">
+                                    <span style="font-weight:600;">${cls}</span>
+                                </label>
+                                <button class="adv-class-edit-btn" data-idx="${idx}" style="background:#ffc107;color:#222;border-radius:8px;padding:4px 12px;">Düzenle</button>
+                                <button class="adv-class-delete-btn" data-idx="${idx}" style="background:#e53935;color:#fff;border-radius:8px;padding:4px 12px;">Sil</button>
+                            `;
+                            list.appendChild(li);
+                        });
+                    }
+                    renderClassList();
+                    // Arama işlevi
+                    document.getElementById('adv-class-search').oninput = function() {
+                        const val = this.value.trim().toLowerCase();
+                        filteredClasses = classesData.filter(cls => cls.toLowerCase().includes(val));
+                        renderClassList();
+                    };
+                    // Tümünü Seç/Kaldır
+                    document.getElementById('adv-class-select-all').onclick = function() {
+                        document.querySelectorAll('.adv-class-checkbox').forEach(cb => cb.checked = true);
+                    };
+                    document.getElementById('adv-class-deselect-all').onclick = function() {
+                        document.querySelectorAll('.adv-class-checkbox').forEach(cb => cb.checked = false);
+                    };
+                    // Toplu silme
+                    document.getElementById('adv-class-delete-selected').onclick = async function() {
+                        var selected = Array.from(document.querySelectorAll('.adv-class-checkbox:checked')).map(cb => Number(cb.getAttribute('data-idx')));
+                        if (selected.length === 0) { alert('Seçili sınıf yok!'); return; }
+                        if (!confirm('Seçili sınıfları silmek istediğinize emin misiniz?')) return;
+                        for (let idx of selected) {
+                            if (filteredClasses[idx]) {
+                                await deleteClassFromDB(filteredClasses[idx]);
+                            }
+                        }
+                        await loadClassesFromDB();
+                        filteredClasses = classesData.slice();
+                        renderClassList();
+                    };
+                    // Düzenle ve sil butonları
+                    advancedEditClassesPanel.addEventListener('click', async function(e) {
+                        if (e.target.classList.contains('adv-class-edit-btn')) {
+                            var idx = Number(e.target.getAttribute('data-idx'));
+                            if (!isNaN(idx)) {
+                                const newName = prompt('Yeni sınıf adını girin:', filteredClasses[idx]);
+                                if (newName && newName.trim() && !classesData.includes(newName.trim())) {
+                                    await saveClassToDB(newName.trim());
+                                    await deleteClassFromDB(filteredClasses[idx]);
+                                    await loadClassesFromDB();
+                                    filteredClasses = classesData.slice();
+                                    renderClassList();
+                                }
+                            }
+                        } else if (e.target.classList.contains('adv-class-delete-btn')) {
+                            var idx = Number(e.target.getAttribute('data-idx'));
+                            if (!isNaN(idx)) {
+                                if (confirm('Bu sınıfı silmek istediğinizden emin misiniz? Markerlar silinmeyecek, sadece sınıf bağlantısı kaldırılacak.')) {
+                                    await deleteClassFromDB(filteredClasses[idx]);
+                                    await loadClassesFromDB();
+                                    filteredClasses = classesData.slice();
+                                    renderClassList();
+                                }
+                            }
+                        }
+                    });
+                }
+                if (advancedEditMarkersPanel) advancedEditMarkersPanel.style.display = 'none';
+            });
+        }
+    }
+
+    // Modal dışında tıklayınca kapat
+    if (advancedEditModal) {
+        advancedEditModal.addEventListener('click', function(e) {
+            if (e.target === advancedEditModal) {
+                advancedEditModal.style.display = 'none';
+            }
+        });
+    }
+    // else ve console.error kaldırıldı (lint hatası düzeltildi)
 
     // Yeni Marker Listesi butonu işlevi
     if (showAdminPanelBtn) {
@@ -1010,12 +1394,12 @@ if (scanBarcodeBtnMobile) {
 
         // Modal açıldığında marker'ı kilitle/det kilidini aç
         let markerObj = (typeof index === 'number' && index >= 0) ? markerLayers[index] : null;
-        if (markerObj && markerObj.marker) {
+        if (markerObj && markerObj.marker && markerObj.marker.dragging) {
             markerObj.marker.dragging.disable();
             if (!lockCheckbox.checked) markerObj.marker.dragging.enable();
         }
         lockCheckbox.addEventListener('change', function() {
-            if (markerObj && markerObj.marker) {
+            if (markerObj && markerObj.marker && markerObj.marker.dragging) {
                 if (this.checked) {
                     markerObj.marker.dragging.disable();
                 } else {
@@ -1023,10 +1407,104 @@ if (scanBarcodeBtnMobile) {
                 }
             }
         });
+    // --- Sade değişiklik uyarı sistemi ---
+    let originalData = JSON.stringify({
+        title: data.title || '',
+        description: data.description || '',
+        latLng: (data.latLng || []).join(','),
+        class: Array.isArray(data.class) ? data.class.slice().sort().join(',') : (data.class || ''),
+        color: data.color || '',
+        barcode: data.barcode || '',
+        images: (data.images || []).join(','),
+        draggable: data.draggable === true ? '1' : '0'
+    });
+    let isDirty = false;
+    function checkDirty() {
+        let currentData = JSON.stringify({
+            title: document.getElementById('title-input').value || '',
+            description: document.getElementById('desc-input').value || '',
+            latLng: document.getElementById('latlng-input').value || '',
+            class: (() => {
+                const tags = document.querySelectorAll('#class-tags span');
+                return Array.from(tags).map(t => t.childNodes[0].textContent.trim()).sort().join(',');
+            })(),
+            color: (() => {
+                const colorRow = document.getElementById('marker-color-row');
+                if (!colorRow) return '';
+                const selected = Array.from(colorRow.children).find(box => box.style && box.style.boxShadow && box.style.boxShadow.includes('#007bff'));
+                return selected ? selected.style.background : '';
+            })(),
+            barcode: (document.getElementById('barcode-input') || {}).value || '',
+            images: (() => {
+                const imgs = document.querySelectorAll('#image-list img');
+                return Array.from(imgs).map(img => img.src).join(',');
+            })(),
+            draggable: document.getElementById('marker-lock-checkbox') && !document.getElementById('marker-lock-checkbox').checked ? '1' : '0'
+        });
+        isDirty = (currentData !== originalData);
+    }
+
+    setTimeout(() => {
+        ['title-input','desc-input','latlng-input','barcode-input','marker-lock-checkbox'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.addEventListener('input', checkDirty);
+        });
+        // Sınıf tagları, renk kutuları, görseller
+        const classTags = document.getElementById('class-tags');
+        if (classTags) classTags.addEventListener('click', checkDirty);
+        const colorRow = document.getElementById('marker-color-row');
+        if (colorRow) colorRow.addEventListener('click', checkDirty);
+        const imageList = document.getElementById('image-list');
+        if (imageList) imageList.addEventListener('click', checkDirty);
+
+        // Kapatma butonlarına uyarı ekle
+        const editModal = document.getElementById('edit-modal');
+        if (editModal) {
+            const closeBtns = editModal.querySelectorAll('.close');
+            closeBtns.forEach(function(btn) {
+                if (!btn._dirtyWarnAttached) {
+                    btn.addEventListener('click', function(e) {
+                        checkDirty();
+                        if (isDirty) {
+                            if (!confirm('Markerda düzenleme yaptınız, kaydetmeden çıkmak mı istiyorsunuz?')) {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                return false;
+                            }
+                        }
+                    }, true);
+                    btn._dirtyWarnAttached = true;
+                }
+            });
+        }
+
+        // Sayfa yenileme uyarısı
+        function beforeUnloadHandler(e) {
+            checkDirty();
+            if (isDirty) {
+                e.preventDefault();
+                e.returnValue = 'Markerda düzenleme yaptınız, kaydetmeden çıkmak mı istiyorsunuz?';
+                return e.returnValue;
+            }
+        }
+        window.addEventListener('beforeunload', beforeUnloadHandler);
+        // Modal kapatılınca eventi kaldır
+        function removeBeforeUnload() {
+            window.removeEventListener('beforeunload', beforeUnloadHandler);
+        }
+        const form = document.getElementById('marker-form');
+        if (form) form.addEventListener('submit', removeBeforeUnload);
+        if (editModal) {
+            const closeBtns = editModal.querySelectorAll('.close');
+            closeBtns.forEach(function(btn) {
+                btn.addEventListener('click', removeBeforeUnload);
+            });
+        }
+    }, 0);
 
         // Modal kapatılırsa (kaydetmeden), marker ve kutucuk eski haline döner
         function revertLockState() {
-            if (markerObj && markerObj.marker) {
+            if (markerObj && markerObj.marker && markerObj.marker.dragging) {
                 if (originalDraggable) {
                     markerObj.marker.dragging.enable();
                 } else {
@@ -1134,15 +1612,22 @@ if (scanBarcodeBtnMobile) {
         }
 
         // --- Renk seçici kutucuklar ---
-        const colorRowId = 'marker-color-row';
-        let colorRow = document.getElementById(colorRowId);
-        if (colorRow) colorRow.remove();
-        colorRow = document.createElement('div');
-        colorRow.id = colorRowId;
-        colorRow.style.display = 'flex';
-        colorRow.style.flexWrap = 'wrap';
-        colorRow.style.gap = '6px';
-        colorRow.style.margin = '12px 0 8px 0';
+    const colorRowId = 'marker-color-row';
+    let colorRow = document.getElementById(colorRowId);
+    if (colorRow) colorRow.remove();
+    colorRow = document.createElement('div');
+    colorRow.id = colorRowId;
+    colorRow.style.display = 'flex';
+    colorRow.style.flexWrap = 'wrap';
+    colorRow.style.gap = '6px';
+    colorRow.style.margin = '12px 0 8px 0';
+    // Başlık ekle
+    var colorTitle = document.createElement('div');
+    colorTitle.textContent = 'Marker Rengi';
+    colorTitle.style.fontWeight = 'bold';
+    colorTitle.style.marginBottom = '6px';
+    colorTitle.style.width = '100%';
+    colorRow.appendChild(colorTitle);
         // 24 kontrast renk
         const markerColors = [
             '#e6194b','#3cb44b','#ffe119','#4363d8','#f58231','#911eb4','#46f0f0','#f032e6',
@@ -1152,7 +1637,8 @@ if (scanBarcodeBtnMobile) {
         let selectedColor = data.color || markerColors[0];
         function updateColorBoxes() {
             Array.from(colorRow.children).forEach((box, i) => {
-                const color = markerColors[i];
+                if (i === 0) return; // başlık
+                const color = markerColors[i-1];
                 box.style.border = (color === selectedColor) ? '3px solid #333' : '2px solid #ccc';
                 if (color === selectedColor) {
                     box.style.boxShadow = '0 0 0 3px #007bff';
@@ -1676,17 +2162,19 @@ if (scanBarcodeBtnMobile) {
     function handleUserBarcodeResult(barcode) {
         // Sadece kullanıcı modunda: marker eşleşirse haritayı ortala ve zoomla, yoksa uyarı ver
         var foundIndex = markersData.findIndex(function(m) { return m.barcode === barcode; });
+        // Önce tüm markerların glow'unu kaldır
+        markerLayers.forEach(layer => {
+            var iconDiv = layer.marker.getElement();
+            if (iconDiv) iconDiv.classList.remove('marker-glow-red');
+        });
         if (foundIndex !== -1) {
             var markerObj = markerLayers[foundIndex];
             var marker = markerObj && markerObj.marker ? markerObj.marker : null;
             if (marker && marker.getLatLng) {
                 map.setView(marker.getLatLng(), 1, { animate: true });
                 marker.openPopup();
-                if (marker._icon) {
-                    marker._icon.style.transition = 'box-shadow 0.3s';
-                    marker._icon.style.boxShadow = '0 0 0 6px #00c85388';
-                    setTimeout(function() { marker._icon.style.boxShadow = ''; }, 1200);
-                }
+                var iconDiv = marker.getElement();
+                if (iconDiv) iconDiv.classList.add('marker-glow-red');
             }
         } else {
             // Sonuç yoksa ve hepsini gizle otomatik kaldırıldıysa tekrar aktif et

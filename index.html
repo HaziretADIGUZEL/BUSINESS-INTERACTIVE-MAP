@@ -45,6 +45,7 @@
             <button id="close-admin-mobile" style="display:none;">Admin Modunu Kapat</button>
             <button id="show-admin-panel-mobile" style="display:none;">Marker Listesi</button>
             <button id="manage-classes-btn-mobile" style="display:none;">Sınıf Yönetimi</button>
+            <button id="advanced-edit-btn-mobile" style="display:none;background:#ffb300;color:#222;font-weight:600;">Gelişmiş Düzenleme</button>
             <button id="scan-barcode-btn-mobile" style="display:none;">Barkod Okut</button>
         </div>
         <!-- Masaüstü admin butonları -->
@@ -52,6 +53,21 @@
             <button id="admin-toggle">Admin Modu</button>
             <button id="show-admin-panel" style="display: none;">Marker Listesi</button>
             <button id="manage-classes-btn" style="display: none;">Sınıf Yönetimi</button>
+            <button id="advanced-edit-btn" style="display:none;background:#ffb300;color:#222;font-weight:600;margin-left:10px;">Gelişmiş Düzenleme</button>
+        </div>
+        <!-- Gelişmiş Düzenleme Modalı (sadece bir tane bırakıldı) -->
+        <div id="advanced-edit-modal" class="modal" style="display:none;z-index:99999;background:rgba(0,0,0,0.92);">
+            <div class="modal-content" style="width:90vw;max-width:1200px;height:90vh;overflow:auto;position:relative;background:#fff;border-radius:18px;margin:3vh auto;padding:32px 24px;">
+                <span class="close" id="advanced-edit-close" style="position:absolute;top:18px;right:32px;font-size:2.2em;cursor:pointer;">&times;</span>
+                <h2 style="margin-bottom:18px;">Gelişmiş Düzenleme</h2>
+                <div id="advanced-edit-step-select" style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:60vh;">
+                    <button id="advanced-edit-markers-btn" style="font-size:1.2em;padding:18px 44px;margin:18px 0 12px 0;">Markerları Düzenle</button>
+                    <button id="advanced-edit-classes-btn" style="font-size:1.2em;padding:18px 44px;">Sınıfları Düzenle</button>
+                </div>
+                <div id="advanced-edit-markers-panel" style="display:none;"></div>
+                <div id="advanced-edit-classes-panel" style="display:none;"></div>
+            </div>
+        </div>
         </div>
         <div id="login-modal" class="modal"> 
             <div class="modal-content" style="margin-top: 114px;"> <span class="close">&times;</span> 

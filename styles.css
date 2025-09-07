@@ -52,6 +52,13 @@
     box-shadow: 0 2px 8px rgba(0,0,0,0.08);
 }
 
+/* Mobil gelişmiş düzenleme butonu için özel renk ve görünüm */
+#advanced-edit-btn-mobile {
+    background: #ffb300 !important;
+    color: #222 !important;
+    font-weight: 600;
+}
+
 @media (max-width: 768px) {
     .hamburger-menu {
         display: block;
@@ -750,3 +757,15 @@ body {
     border: none !important;
 }
 
+/* Marker glow için zorlayıcı stiller */
+.marker-icon, .marker-icon * {
+    overflow: visible !important;
+}
+.marker-glow-red {
+    box-shadow:
+        3px 4px 24px 8px #ff1744,           /* sağ alta dış glow */
+        0 0 12px 4px #ff1744 inset,         /* içeriye kırmızı glow */
+        0px 0px 0px 0px rgb(255, 0, 0) !important;
+    z-index: 999 !important;
+    /* outline kaldırıldı, overflow ve z-index ile görünürlük artırıldı */
+}
