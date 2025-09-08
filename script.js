@@ -30,8 +30,7 @@ async function authFetch(url, options = {}) {
 }
 
 function initApp() {
-    console.log('initApp başlatıldı');
-    console.log('Leaflet var mı?', typeof L);
+    // ...existing code...
 
     var hideAllFilters = document.getElementById('hide-all-filters');
     if (hideAllFilters) {
@@ -44,7 +43,7 @@ function initApp() {
         alert('Hata: Leaflet kütüphanesi yüklenemedi.');
         return;
     }
-    console.log('Leaflet kütüphanesi başarıyla yüklendi');
+    // ...existing code...
 
     // Harita div kontrolü
     var mapDiv = document.getElementById('map');
@@ -53,7 +52,7 @@ function initApp() {
         alert('Hata: #map div bulunamadı.');
         return;
     }
-    console.log('#map div bulundu, boyutlar:', mapDiv.style.width, mapDiv.style.height);
+    // ...existing code...
 
     // Harita oluşturma
     var map;
@@ -67,7 +66,7 @@ function initApp() {
             maxZoom: 3,
             maxBoundsViscosity: 1.0
         });
-        console.log('Harita oluşturuldu. minZoom:', minZoom);
+    // ...existing code...
     } catch (err) {
         console.error('L.map hatası:', err);
         alert('Hata: Leaflet harita oluşturulamadı.');
@@ -85,13 +84,11 @@ function initApp() {
         [imgHeight * (1 + padding), imgWidth * (1 + padding)]
     ];
     var imageBounds = [[0, 0], [imgHeight, imgWidth]];
-    console.log('PNG yükleniyor:', imageUrl);
+    // ...existing code...
     try {
         var imageOverlay = L.imageOverlay(imageUrl, imageBounds).addTo(map);
         imageOverlay.on('load', function() {
-            console.log('PNG başarıyla yüklendi:', imageUrl);
-            var img = document.querySelector('#map img');
-            console.log(img ? { width: img.width, height: img.height } : 'PNG bulunamadı');
+            // ...existing code...
         });
         imageOverlay.on('error', function(err) {
             console.error('PNG yüklenemedi:', imageUrl, err);
@@ -108,7 +105,7 @@ function initApp() {
         var initialZoom = isMobile ? -5 : -3; // Mobilde daha yakın başlat
         map.setView([imgHeight / 2, imgWidth / 2], initialZoom);
         map.setMaxBounds(paddedBounds); // Genişletilmiş sınırları kullan
-        console.log('Harita ortalandı:', [imgHeight / 2, imgWidth / 2], 'Zoom:', initialZoom);
+    // ...existing code...
     } catch (err) {
         console.error('map.setView hatası:', err);
     }
@@ -1353,6 +1350,35 @@ if (advancedEditBtnMobile) {
 
     // Düzenleme Modal Aç
     window.openEditModal = async function(data, index) {
+        // --- Modal arka planına tıklayınca marker düzenleme modalı kapanmasın ---
+        var editModal = document.getElementById('edit-modal');
+        if (editModal) {
+            editModal.onclick = function(e) {
+                // Sadece modal-content dışına tıklanırsa hiçbir şey yapma (kapatma!)
+                if (e.target === editModal) {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    return false;
+                }
+            };
+        }
+
+        // --- marker-form submit ile modal kapanmasını engelle ---
+        var markerForm = document.getElementById('marker-form');
+        if (markerForm) {
+            markerForm.onsubmit = function(ev) {
+                // Sadece kaydetme işlemi yapılacak, modal burada kapanmayacak
+                // (Modalı kapatan başka bir kod varsa engelle)
+                ev = ev || window.event;
+                if (ev) {
+                    ev.stopPropagation();
+                    // Modalı kapatacak başka bir kodun çalışmasını engelle
+                    // (Kaydetme işlemi sonrası modalı kapatmak istiyorsanız, sadece başarılı kayıttan sonra kapatın)
+                }
+                // Modalı kapatma işlemi burada yapılmaz!
+                return true;
+            };
+        }
     // --- Konum kilitle kutucuğu için orijinal değerleri yedekle ---
     let originalDraggable = (typeof data.draggable === 'boolean') ? data.draggable : false;
     let originalCheckboxState = !(data.draggable === true);
@@ -1407,115 +1433,35 @@ if (advancedEditBtnMobile) {
                 }
             }
         });
-    // --- Sade değişiklik uyarı sistemi ---
-    let originalData;
-    setTimeout(() => {
-        originalData = JSON.stringify({
-            title: document.getElementById('title-input').value || '',
-            description: document.getElementById('desc-input').value || '',
-            latLng: document.getElementById('latlng-input').value || '',
-            class: (() => {
-                const tags = document.querySelectorAll('#class-tags span');
-                return Array.from(tags).map(t => t.childNodes[0].textContent.trim()).sort().join(',');
-            })(),
-            color: (() => {
-                const colorRow = document.getElementById('marker-color-row');
-                if (!colorRow) return '';
-                const selected = Array.from(colorRow.children).find(box => box.style && box.style.boxShadow && box.style.boxShadow.includes('#007bff'));
-                return selected ? selected.style.background : '';
-            })(),
-            barcode: (document.getElementById('barcode-input') || {}).value || '',
-            images: (() => {
-                const imgs = document.querySelectorAll('#image-list img');
-                return Array.from(imgs).map(img => img.src).join(',');
-            })(),
-            draggable: document.getElementById('marker-lock-checkbox') && !document.getElementById('marker-lock-checkbox').checked ? '1' : '0'
-        });
-        checkDirty();
-    }, 10);
-    let isDirty = false;
-    function checkDirty() {
-        let currentData = JSON.stringify({
-            title: document.getElementById('title-input').value || '',
-            description: document.getElementById('desc-input').value || '',
-            latLng: document.getElementById('latlng-input').value || '',
-            class: (() => {
-                const tags = document.querySelectorAll('#class-tags span');
-                return Array.from(tags).map(t => t.childNodes[0].textContent.trim()).sort().join(',');
-            })(),
-            color: (() => {
-                const colorRow = document.getElementById('marker-color-row');
-                if (!colorRow) return '';
-                const selected = Array.from(colorRow.children).find(box => box.style && box.style.boxShadow && box.style.boxShadow.includes('#007bff'));
-                return selected ? selected.style.background : '';
-            })(),
-            barcode: (document.getElementById('barcode-input') || {}).value || '',
-            images: (() => {
-                const imgs = document.querySelectorAll('#image-list img');
-                return Array.from(imgs).map(img => img.src).join(',');
-            })(),
-            draggable: document.getElementById('marker-lock-checkbox') && !document.getElementById('marker-lock-checkbox').checked ? '1' : '0'
-        });
-        isDirty = (currentData !== originalData);
+    // --- Local snapshot ile değişiklik uyarı sistemi ve log ---
+    // Her yeni marker açılışında eski snapshot'ı sil
+    if (window.markerFormSnapshot) {
+        window.markerFormSnapshot = null;
     }
-
     setTimeout(() => {
-        ['title-input','desc-input','latlng-input','barcode-input','marker-lock-checkbox'].forEach(id => {
-            const el = document.getElementById(id);
-            if (el) el.addEventListener('input', checkDirty);
+        window.markerFormSnapshot = JSON.stringify({
+            title: document.getElementById('title-input').value || '',
+            description: document.getElementById('desc-input').value || '',
+            latLng: document.getElementById('latlng-input').value || '',
+            class: (() => {
+                const tags = document.querySelectorAll('#class-tags span');
+                return Array.from(tags).map(t => t.childNodes[0].textContent.trim()).sort().join(',');
+            })(),
+            color: (() => {
+                const colorRow = document.getElementById('marker-color-row');
+                if (!colorRow) return '';
+                const selected = Array.from(colorRow.children).find(box => box.style && box.style.boxShadow && box.style.boxShadow.includes('#007bff'));
+                return selected ? selected.style.background : '';
+            })(),
+            barcode: (document.getElementById('barcode-input') || {}).value || '',
+            images: (() => {
+                const imgs = document.querySelectorAll('#image-list img');
+                return Array.from(imgs).map(img => img.src).join(',');
+            })(),
+            draggable: document.getElementById('marker-lock-checkbox') && !document.getElementById('marker-lock-checkbox').checked ? '1' : '0'
         });
-        // Sınıf tagları, renk kutuları, görseller
-        const classTags = document.getElementById('class-tags');
-        if (classTags) classTags.addEventListener('click', checkDirty);
-        const colorRow = document.getElementById('marker-color-row');
-        if (colorRow) colorRow.addEventListener('click', checkDirty);
-        const imageList = document.getElementById('image-list');
-        if (imageList) imageList.addEventListener('click', checkDirty);
+    }, 10);
 
-        // Kapatma butonlarına uyarı ekle
-        const editModal = document.getElementById('edit-modal');
-        if (editModal) {
-            const closeBtns = editModal.querySelectorAll('.close');
-            closeBtns.forEach(function(btn) {
-                if (!btn._dirtyWarnAttached) {
-                    btn.addEventListener('click', function(e) {
-                        checkDirty();
-                        if (isDirty) {
-                            if (!confirm('Markerda düzenleme yaptınız, kaydetmeden çıkmak mı istiyorsunuz?')) {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                return false;
-                            }
-                        }
-                    }, true);
-                    btn._dirtyWarnAttached = true;
-                }
-            });
-        }
-
-        // Sayfa yenileme uyarısı
-        function beforeUnloadHandler(e) {
-            checkDirty();
-            if (isDirty) {
-                e.preventDefault();
-                e.returnValue = 'Markerda düzenleme yaptınız, kaydetmeden çıkmak mı istiyorsunuz?';
-                return e.returnValue;
-            }
-        }
-        window.addEventListener('beforeunload', beforeUnloadHandler);
-        // Modal kapatılınca eventi kaldır
-        function removeBeforeUnload() {
-            window.removeEventListener('beforeunload', beforeUnloadHandler);
-        }
-        const form = document.getElementById('marker-form');
-        if (form) form.addEventListener('submit', removeBeforeUnload);
-        if (editModal) {
-            const closeBtns = editModal.querySelectorAll('.close');
-            closeBtns.forEach(function(btn) {
-                btn.addEventListener('click', removeBeforeUnload);
-            });
-        }
-    }, 0);
 
         // Modal kapatılırsa (kaydetmeden), marker ve kutucuk eski haline döner
         function revertLockState() {
@@ -1529,18 +1475,153 @@ if (advancedEditBtnMobile) {
             lockCheckbox.checked = originalCheckboxState;
         }
 
-        // Modal kapatma butonlarını bul ve revert işlemini ekle
+        // Modal kapatma butonlarını bul ve revert+snapshot kontrolü+log ekle
         const closeBtns = editModal.querySelectorAll('.close');
         closeBtns.forEach(function(btn) {
-            // Önce eski eventleri kaldır
             btn.onclick = null;
-            btn.addEventListener('click', function() {
+            // Önce eski event listener'ı kaldırmak için fonksiyonu referans olarak tanımla
+            function closeHandler(ev) {
+                // Sadece marker düzenleme modalı için, event'ın yayılımını kesin olarak engelle
+                ev.stopPropagation();
+                ev.stopImmediatePropagation();
+                // İptal durumunda modalın kapanmasını kesin engelle
+                let cancelled = false;
+                // Eğer aktif modal edit-modal ise, başka hiçbir global/modal kapatma event'i çalışmasın
+                var editModal = document.getElementById('edit-modal');
+                if (editModal && editModal.style.display === 'block') {
+                    window.__activeModal = 'edit-modal';
+                } else {
+                    window.__activeModal = null;
+                }
+                if (window.__activeModal === 'edit-modal' && ev.target.classList.contains('close')) {
+                    // Sadece edit-modal açıkken ve .close'a tıklanmışsa, bu handler çalışsın
+                } else if (window.__activeModal === 'edit-modal') {
+                    // edit-modal açıkken başka bir kapatma event'i tetiklenirse, hiçbir şey yapma
+                    return false;
+                }
+                window.isClosingEditModal = true;
                 revertLockState();
+                if (!window.markerFormSnapshot) {
+                    // Snapshot yoksa direkt kapat
+                    editModal.style.display = 'none';
+                    var adminModal = document.getElementById('admin-modal');
+                    if (adminModal) adminModal.style.display = 'block';
+                    window.isClosingEditModal = false;
+                    // Tüm close eventlerini kaldır
+                    closeBtns.forEach(function(b){ b.removeEventListener('click', closeHandler); });
+                    return;
+                }
+                // Snapshot ile mevcut durumu kıyasla
+                const currentData = JSON.stringify({
+                    title: document.getElementById('title-input').value || '',
+                    description: document.getElementById('desc-input').value || '',
+                    latLng: document.getElementById('latlng-input').value || '',
+                    class: (() => {
+                        const tags = document.querySelectorAll('#class-tags span');
+                        return Array.from(tags).map(t => t.childNodes[0].textContent.trim()).sort().join(',');
+                    })(),
+                    color: (() => {
+                        const colorRow = document.getElementById('marker-color-row');
+                        if (!colorRow) return '';
+                        const selected = Array.from(colorRow.children).find(box => box.style && box.style.boxShadow && box.style.boxShadow.includes('#007bff'));
+                        return selected ? selected.style.background : '';
+                    })(),
+                    barcode: (document.getElementById('barcode-input') || {}).value || '',
+                    images: (() => {
+                        const imgs = document.querySelectorAll('#image-list img');
+                        return Array.from(imgs).map(img => img.src).join(',');
+                    })(),
+                    draggable: document.getElementById('marker-lock-checkbox') && !document.getElementById('marker-lock-checkbox').checked ? '1' : '0'
+                });
+                if (currentData !== window.markerFormSnapshot) {
+                    showUnsavedChangesPanel(
+                        function onConfirm() {
+                            // Evet: Modalı kapat
+                            editModal.style.display = 'none';
+                            window.markerFormSnapshot = null;
+                            var adminModal = document.getElementById('admin-modal');
+                            if (adminModal) adminModal.style.display = 'block';
+                            window.isClosingEditModal = false;
+                            closeBtns.forEach(function(b){ b.removeEventListener('click', closeHandler); });
+                        },
+                        function onCancel() {
+                            window.isClosingEditModal = false;
+                        }
+                    );
+                    // Çıkış işlemini burada tamamen durdur, modalı asla kapatma!
+                    return;
+                }
+                // Değişiklik yoksa doğrudan kapat
                 editModal.style.display = 'none';
-                // Admin modalı tekrar açılacaksa
+                window.markerFormSnapshot = null;
                 var adminModal = document.getElementById('admin-modal');
                 if (adminModal) adminModal.style.display = 'block';
-            });
+                window.isClosingEditModal = false;
+                closeBtns.forEach(function(b){ b.removeEventListener('click', closeHandler); });
+// Kaydedilmemiş değişiklikler için özel uyarı paneli fonksiyonu
+function showUnsavedChangesPanel(onConfirm, onCancel) {
+    // Panel açılırken marker düzenleme modalının close butonlarını devre dışı bırak
+    var editModal = document.getElementById('edit-modal');
+    var closeBtns = editModal ? editModal.querySelectorAll('.close') : [];
+    // Tüm close eventlerini geçici olarak kaldır
+    closeBtns.forEach(function(b){
+        b.__old_onclick = b.onclick;
+        b.onclick = function(e) { e.stopPropagation(); e.preventDefault(); };
+    });
+    let panel = document.getElementById('unsaved-changes-panel');
+    if (!panel) {
+        panel = document.createElement('div');
+        panel.id = 'unsaved-changes-panel';
+        panel.innerHTML = `
+            <div class="unsaved-changes-modal">
+                <div class="unsaved-changes-content">
+                    <p>Kaydedilmemiş değişiklikler var. Çıkmak istediğinize emin misiniz?</p>
+                    <button id="unsaved-yes">Evet</button>
+                    <button id="unsaved-no">Hayır</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(panel);
+    } else {
+        panel.style.display = 'flex';
+    }
+    // Panel açıldığında body'ye class ekle
+    document.body.classList.add('unsaved-panel-open');
+    document.getElementById('unsaved-yes').onclick = function(e) {
+        e.stopPropagation();
+        panel.style.display = 'none';
+        document.body.classList.remove('unsaved-panel-open');
+        // Panel kapanınca close butonlarını tekrar aktif et
+        closeBtns.forEach(function(b){
+            if (b.__old_onclick) b.onclick = b.__old_onclick;
+            delete b.__old_onclick;
+        });
+        if (onConfirm) onConfirm();
+    };
+    document.getElementById('unsaved-no').onclick = function(e) {
+        e.stopPropagation();
+        panel.style.display = 'none';
+        document.body.classList.remove('unsaved-panel-open');
+        // Panel kapanınca close butonlarını tekrar aktif et
+        closeBtns.forEach(function(b){
+            if (b.__old_onclick) b.onclick = b.__old_onclick;
+            delete b.__old_onclick;
+        });
+        // Marker düzenleme modalı tekrar görünür olsun
+        var editModal = document.getElementById('edit-modal');
+        if (editModal) editModal.style.display = 'block';
+        if (onCancel) onCancel();
+    };
+    // Panel dışına tıklanınca kapanmasın
+    panel.onclick = function(e) {
+        // Sadece overlay'e tıklanırsa hiçbir şey yapma, paneli kapatma
+        if (e.target === panel) {
+            e.stopPropagation();
+        }
+    };
+}
+            }
+            btn.addEventListener('click', closeHandler);
         });
 
         // --- Düzenleme modalında Barkod Okut butonu ---
@@ -1716,6 +1797,26 @@ if (advancedEditBtnMobile) {
                     return;
                 }
 
+                // 12 haneli barkod kontrolü
+                var barcodeValue = barcodeInput ? barcodeInput.value.trim() : '';
+                if (barcodeValue) {
+                    if (!/^\d{12}$/.test(barcodeValue)) {
+                        alert('Barkod numarası 12 haneli bir sayı olmalıdır.');
+                        barcodeInput.focus();
+                        return;
+                    }
+                    // Eşsiz barkod kontrolü (başka markerda var mı?)
+                    var duplicate = markersData.some(function(m, idx) {
+                        if (!m.barcode) return false;
+                        if (selectedMarkerIndex !== -1 && idx === selectedMarkerIndex) return false; // Kendi markerı hariç
+                        return m.barcode === barcodeValue;
+                    });
+                    if (duplicate) {
+                        alert('Bu barkod başka bir markerda zaten kayıtlı. Lütfen farklı bir barkod girin.');
+                        barcodeInput.focus();
+                        return;
+                    }
+                }
 
                 var newData = {
                     latLng: document.getElementById('latlng-input').value.split(', ').map(Number),
@@ -1782,12 +1883,11 @@ if (advancedEditBtnMobile) {
         currentImages = markersData[markerIndex].images || [];
         currentImageIndex = imageIndex;
         if (currentImages.length === 0) {
-            console.log('Görsel bulunamadı!');
             if (editModal) editModal.querySelector('#image-error').textContent = 'Görsel bulunamadı.';
             return;
         }
 
-        console.log('Büyük görsel açılıyor:', currentImages[currentImageIndex]);
+    // ...existing code...
 
         if (imageViewerMap) {
             imageViewerMap.remove();
@@ -1822,7 +1922,7 @@ if (advancedEditBtnMobile) {
         img.src = currentImages[currentImageIndex];
         
         img.onload = function() {
-            console.log('Görsel yüklendi:', img.src, { width: img.width, height: img.height });
+            // ...existing code...
             var bounds = [[0, 0], [img.height, img.width]];
             L.imageOverlay(img.src, bounds).addTo(imageViewerMap);
             imageViewerMap.fitBounds(bounds);
@@ -1843,7 +1943,6 @@ if (advancedEditBtnMobile) {
         prevButton.addEventListener('click', function() {
             if (currentImages.length > 1) {
                 currentImageIndex = (currentImageIndex - 1 + currentImages.length) % currentImages.length;
-                console.log('Önceki görsel:', currentImages[currentImageIndex]);
                 updateImageViewer();
             }
         });
@@ -1852,7 +1951,6 @@ if (advancedEditBtnMobile) {
         nextButton.addEventListener('click', function() {
             if (currentImages.length > 1) {
                 currentImageIndex = (currentImageIndex + 1) % currentImages.length;
-                console.log('Sonraki görsel:', currentImages[currentImageIndex]);
                 updateImageViewer();
             }
         });
@@ -2203,8 +2301,43 @@ if (advancedEditBtnMobile) {
     }
 }
 
+
+// --- Sayfa yenileme/kapama sırasında kaydedilmemiş marker değişikliği varsa uyarı ---
+window.addEventListener('beforeunload', function(e) {
+    // Eğer marker düzenleme modalı açıksa ve kaydedilmemiş değişiklik varsa uyarı göster
+    var editModal = document.getElementById('edit-modal');
+    if (editModal && editModal.style.display === 'block' && window.markerFormSnapshot) {
+        // Mevcut form verisini al
+        var currentData = JSON.stringify({
+            title: document.getElementById('title-input')?.value || '',
+            description: document.getElementById('desc-input')?.value || '',
+            latLng: document.getElementById('latlng-input')?.value || '',
+            class: (() => {
+                const tags = document.querySelectorAll('#class-tags span');
+                return Array.from(tags).map(t => t.childNodes[0].textContent.trim()).sort().join(',');
+            })(),
+            color: (() => {
+                const colorRow = document.getElementById('marker-color-row');
+                if (!colorRow) return '';
+                const selected = Array.from(colorRow.children).find(box => box.style && box.style.boxShadow && box.style.boxShadow.includes('#007bff'));
+                return selected ? selected.style.background : '';
+            })(),
+            barcode: (document.getElementById('barcode-input') || {}).value || '',
+            images: (() => {
+                const imgs = document.querySelectorAll('#image-list img');
+                return Array.from(imgs).map(img => img.src).join(',');
+            })(),
+            draggable: document.getElementById('marker-lock-checkbox') && !document.getElementById('marker-lock-checkbox').checked ? '1' : '0'
+        });
+        if (currentData !== window.markerFormSnapshot) {
+            e.preventDefault();
+            e.returnValue = '';
+            return '';
+        }
+    }
+});
+
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('DOMContentLoaded tetiklendi');
     initApp();
 });
 

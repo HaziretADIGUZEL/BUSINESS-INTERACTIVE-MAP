@@ -119,15 +119,18 @@
                     <div id="image-list"></div>                     
                     <label>Konum (otomatik seçilecek):</label>                     
                     <input type="text" id="latlng-input" readonly> 
-                    <button type="submit">Kaydet</button>                     
-                    <button type="button" id="delete-marker">Sil</button>                     
                     <button type="button" id="scan-barcode-btn" style="margin-left:8px;">Barkod Okut</button>
                     <!-- Barkod alanı (sadece admin modunda gösterilecek) -->
                     <div id="barcode-row" style="margin-top:12px;display:none;align-items:center;gap:8px;">
                         <label for="barcode-input" style="margin-bottom:0;">Barkod:</label>
-                        <input type="text" id="barcode-input" style="width:180px;" readonly>
+    <input type="text" id="barcode-input" style="width:180px;">
                         <button type="button" id="add-barcode-btn">Barkod Ekle</button>
                         <button type="button" id="remove-barcode-btn" style="display:none;">Barkodu Sil</button>
+                    </div>
+                    <!-- Kaydet ve Sil butonlarını alt alta değil, yan yana ve barkod alanının altında göster -->
+                    <div style="display:flex;gap:16px;margin-top:18px;">
+                        <button type="submit">Kaydet</button>
+                        <button type="button" id="delete-marker">Sil</button>
                     </div>
                 </form>                 
                 <p>Konum seçmek için haritaya tıklayın (admin modunda).</p> 

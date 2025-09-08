@@ -1,3 +1,72 @@
+/* Marker konumu kilitle kutucuğu sola yaslı ve sabit hizada */
+#marker-lock-row {
+    justify-content: flex-start !important;
+    align-items: center !important;
+    gap: 8px;
+    margin: 8px 0 8px 0;
+    display: flex !important;
+}
+#marker-lock-row input[type="checkbox"] {
+    margin-left: 0 !important;
+    margin-right: 8px !important;
+    vertical-align: middle;
+}
+#marker-lock-row label {
+    margin: 0 !important;
+    padding: 0 !important;
+    vertical-align: middle;
+}
+body.unsaved-panel-open #edit-modal,
+#edit-modal[style*="display: block"],
+#edit-modal.active {
+    display: block !important;
+    z-index: 1010 !important;
+}
+/* Panel açıkken arka planı tamamen devre dışı bırak */
+body.unsaved-panel-open > *:not(#unsaved-changes-panel),
+html.unsaved-panel-open > *:not(#unsaved-changes-panel) {
+    pointer-events: none !important;
+    user-select: none !important;
+    filter: blur(0.5px);
+}
+#unsaved-changes-panel {
+    pointer-events: auto !important;
+    z-index: 1011 !important;
+}
+/* Kaydedilmemiş değişiklikler için özel uyarı paneli CSS */
+#unsaved-changes-panel {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.4);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.unsaved-changes-modal {
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 2px 16px rgba(0,0,0,0.2);
+    padding: 32px 24px 24px 24px;
+    min-width: 320px;
+    max-width: 90vw;
+    text-align: center;
+}
+.unsaved-changes-content p {
+    font-size: 1.1em;
+    margin-bottom: 20px;
+}
+#unsaved-yes, #unsaved-no {
+    min-width: 80px;
+    margin: 0 12px;
+    padding: 8px 18px;
+    font-size: 1em;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+}
+#unsaved-yes { background: #d32f2f; color: #fff; }
+#unsaved-no { background: #eee; color: #222; }
 /* advanced-edit-classes-panel içindeki tüm butonları %60 küçült */
 #advanced-edit-classes-panel button {
     transform: scale(0.6);
