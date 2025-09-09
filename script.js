@@ -1403,15 +1403,27 @@ if (advancedEditBtnMobile) {
         lockRow.style.alignItems = 'center';
         lockRow.style.gap = '8px';
         lockRow.style.margin = '8px 0 8px 0';
+
+        // YENİ: Kutucuk özellikleri
         const lockCheckbox = document.createElement('input');
         lockCheckbox.type = 'checkbox';
         lockCheckbox.id = 'marker-lock-checkbox';
-        lockCheckbox.checked = !(data.draggable === true); // true ise kilitli değil, false/undefined ise kilitli
+        lockCheckbox.checked = !(data.draggable === true);
+        lockCheckbox.setAttribute('data-selected', 'true');
+        lockCheckbox.setAttribute('data-label-id', '0');
+        lockCheckbox.style.width = '49.7188px';
+        lockCheckbox.style.height = '17px';
+        lockCheckbox.style.transition = 'none';
+
+        // Etiket
         const lockLabel = document.createElement('label');
         lockLabel.htmlFor = 'marker-lock-checkbox';
         lockLabel.textContent = 'Konumu Kilitle (Sürüklemeyi Engelle)';
+
+        // Ekle
         lockRow.appendChild(lockCheckbox);
         lockRow.appendChild(lockLabel);
+
         // LatLng input'un hemen altına ekle
         const latlngInput = document.getElementById('latlng-input');
         if (latlngInput && latlngInput.parentNode) {
@@ -2427,6 +2439,3 @@ if (manageClassesBtnMobile) {
         hideMobilePanel();
     });
 }
-
-
-// Modal kapatma işlemleri her modalın kendi içinde yönetiliyor (ör: editModal için yukarıda)

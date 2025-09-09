@@ -677,8 +677,11 @@ body {
 
 #marker-form label,
 #login-form label {
-    display: block;
-    margin-top: 10px;
+    display: flex;
+    margin-top: 16px;
+    top: 0px;
+    padding-top: 10px;
+    padding-bottom: 10px;
 }
 
 #marker-form input,
@@ -773,6 +776,7 @@ body {
     outline: none;
     background: #007bff;
     color: #fff;
+    margin-top: 16px;
 }
 
 #marker-form button:hover,
