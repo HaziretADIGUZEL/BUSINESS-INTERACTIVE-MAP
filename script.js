@@ -29,8 +29,41 @@ async function authFetch(url, options = {}) {
     return response;
 }
 
+function formatTimestamp(timestamp) {
+    if (!timestamp) return '';
+    // Firebase Timestamps can be objects with seconds, or ISO strings.
+    const date = timestamp.seconds ? new Date(timestamp.seconds * 1000) : new Date(timestamp);
+    if (isNaN(date.getTime())) return ''; // Invalid date check
+
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0'); // Months are 0-indexed
+    const year = date.getFullYear();
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+
+    return `${day}.${month}.${year} ${hours}:${minutes}`;
+}
+
 function initApp() {
-    // ...existing code...
+    // --- YENİ: Global "Kaydediliyor..." overlay'i oluştur ---
+    let savingOverlay = document.getElementById('saving-overlay');
+    if (!savingOverlay) {
+        savingOverlay = document.createElement('div');
+        savingOverlay.id = 'saving-overlay';
+        savingOverlay.style.position = 'fixed'; // Tüm ekranı kaplaması için 'fixed'
+        savingOverlay.style.top = '0';
+        savingOverlay.style.left = '0';
+        savingOverlay.style.width = '100vw';
+        savingOverlay.style.height = '100vh';
+        savingOverlay.style.background = 'rgba(0, 0, 0, 0.6)'; // Daha belirgin bir arka plan
+        savingOverlay.style.zIndex = '99999'; // Diğer tüm modalların üzerinde olmalı
+        savingOverlay.style.display = 'none'; // Başlangıçta gizli
+        savingOverlay.style.alignItems = 'center';
+        savingOverlay.style.justifyContent = 'center';
+        savingOverlay.innerHTML = '<div style="background:#fff;padding:20px 30px;border-radius:10px;font-size:1.5rem;font-weight:600;color:#007bff;box-shadow:0 2px 10px rgba(0,0,0,0.15);">Kaydediliyor...</div>';
+        document.body.appendChild(savingOverlay); // Doğrudan body'ye ekle
+    }
+
 
     var hideAllFilters = document.getElementById('hide-all-filters');
     if (hideAllFilters) {
@@ -119,6 +152,7 @@ function initApp() {
     var highlightedMarkers = [];
     var activeFilters = new Set();
     var inversionActive = false;
+    let selectedColor; // <-- HATA DÜZELTME: selectedColor'ı initApp kapsamına taşı
 
     // Backend ile marker ve sınıf verileri
     async function loadMarkersFromDB() {
@@ -388,7 +422,20 @@ if (advancedEditBtnMobile) {
             imagesHtml = `<div class="marker-images">${markerData.images.map((img, i) => `<img src="${img}" alt="Image ${i}" onclick="openImageViewer(${index}, ${i})">`).join('')}</div>`;
         }
         var adminEditButton = adminMode ? `<button class="edit-button" onclick="editMarker(${index})">Düzenle</button>` : '';
+        
+        const createdAt = formatTimestamp(markerData.createdAt);
+        const updatedAt = formatTimestamp(markerData.updatedAt);
+        let timestampsHtml = '<div style="font-size: 11px; color: #888; margin-bottom: 8px;">';
+        if (createdAt) {
+            timestampsHtml += `Oluşturulma: ${createdAt}`;
+        }
+        if (updatedAt && updatedAt !== createdAt) {
+            timestampsHtml += `<br>Son Değişiklik: ${updatedAt}`;
+        }
+        timestampsHtml += '</div>';
+
         return `
+            ${timestampsHtml}
             <h2>${markerData.title}</h2>
             <p>${markerData.description}</p>
             ${imagesHtml}
@@ -998,7 +1045,11 @@ if (advancedEditBtnMobile) {
             closeBtn.addEventListener('click', function() {
                 modal.style.display = 'none';
                 if (loginModal) loginModal.querySelector('#login-error').textContent = '';
-                if (editModal) editModal.querySelector('#image-error').textContent = '';
+                // HATA KONTROLÜ EKLENDİ ↓↓↓
+                if (editModal) {
+                    var imageErrorElem = editModal.querySelector('#image-error');
+                    if (imageErrorElem) imageErrorElem.textContent = '';
+                }
             });
         }
     });
@@ -1082,50 +1133,160 @@ if (advancedEditBtnMobile) {
     function loadAdminMarkers() {
         var markerList = document.getElementById('marker-list');
         if (!markerList) return;
-        markerList.innerHTML = '';
-        markersData.forEach(function(markerData, index) {
-            var li = document.createElement('li');
-            li.style.display = 'flex';
-            li.style.alignItems = 'center';
-            li.style.justifyContent = 'space-between';
-    
-            var titleSpan = document.createElement('span');
-            titleSpan.textContent = markerData.title;
-    
-            var btnDiv = document.createElement('div');
-            btnDiv.style.display = 'flex';
-            btnDiv.style.gap = '10px';
-    
-            var editBtn = document.createElement('button');
-            editBtn.textContent = 'Düzenle';
-            editBtn.onclick = function(e) {
-                e.stopPropagation();
-                editMarker(index);
-            };
-    
-            var deleteBtn = document.createElement('button');
-            deleteBtn.textContent = 'Sil';
-            deleteBtn.onclick = async function(e) {
-                e.stopPropagation();
-                if (confirm('Bu markerı silmek istediğinizden emin misiniz?')) {
-                    try {
-                        await deleteMarkerFromDB(markerData.id);
-                        loadMarkers();
-                        loadAdminMarkers();
-                    } catch (error) {
-                        alert('Marker silinemedi.');
-                    }
+
+        // --- YENİ: Panel başlığını değiştir ---
+        const adminModal = document.getElementById('admin-modal');
+        if (adminModal) {
+            const title = adminModal.querySelector('h2');
+            if (title) title.textContent = 'Marker Paneli';
+        }
+
+        // --- YENİ: Sıralama kontrollerini ekle ---
+        let sortControls = document.getElementById('marker-sort-controls');
+        if (!sortControls) {
+            sortControls = document.createElement('div');
+            sortControls.id = 'marker-sort-controls';
+            sortControls.style.display = 'flex';
+            sortControls.style.alignItems = 'center';
+            sortControls.style.gap = '10px';
+            sortControls.style.marginBottom = '15px';
+            sortControls.innerHTML = `
+                <label for="sort-criteria" style="font-weight: 600;">Sırala:</label>
+                <select id="sort-criteria" style="padding: 4px; border-radius: 5px;">
+                    <option value="updatedAt">Son Değişiklik</option>
+                    <option value="createdAt">Oluşturma Tarihi</option>
+                    <option value="title">Alfabetik</option>
+                </select>
+                <button id="sort-reverse-btn" title="Sıralamayı tersine çevir" style="padding: 4px 8px; cursor: pointer;">⇅</button>
+            `;
+            markerList.parentNode.insertBefore(sortControls, markerList);
+
+            // Event listener'ları sadece bir kez ekle
+            document.getElementById('sort-criteria').addEventListener('change', renderSortedMarkers);
+            document.getElementById('sort-reverse-btn').addEventListener('click', () => {
+                // State'i değiştir ve yeniden render et
+                window.isSortReversed = !window.isSortReversed;
+                renderSortedMarkers();
+            });
+        }
+
+        // --- YENİ: Sıralama state'ini yönet ---
+        // Eğer state tanımlı değilse, varsayılan olarak false ata
+        if (typeof window.isSortReversed === 'undefined') {
+            window.isSortReversed = false;
+        }
+        
+        function renderSortedMarkers() {
+            const criteria = document.getElementById('sort-criteria').value;
+            let sortedMarkers = [...markersData]; // Orijinal diziyi bozmamak için kopyala
+
+            sortedMarkers.sort((a, b) => {
+                let valA, valB;
+                if (criteria === 'title') {
+                    valA = a.title.toLowerCase();
+                    valB = b.title.toLowerCase();
+                } else { // createdAt veya updatedAt
+                    // Geçersiz tarihleri en sona atmak için kontrol
+                    valA = a[criteria] ? new Date(a[criteria]).getTime() : 0;
+                    valB = b[criteria] ? new Date(b[criteria]).getTime() : 0;
+                    if (isNaN(valA)) valA = 0;
+                    if (isNaN(valB)) valB = 0;
                 }
-            };
-    
-            btnDiv.appendChild(editBtn);
-            btnDiv.appendChild(deleteBtn);
-    
-            li.appendChild(titleSpan);
-            li.appendChild(btnDiv);
-    
-            markerList.appendChild(li);
-        });
+
+                if (valA < valB) return -1;
+                if (valA > valB) return 1;
+                return 0;
+            });
+
+            // Varsayılan sıralama yönü: Tarihler için yeniden eskiye, alfabe için A-Z.
+            // Tarih ise, sort'un doğal (eskiden yeniye) sonucunu ters çevirerek en yeniyi başa al.
+            if (criteria === 'createdAt' || criteria === 'updatedAt') {
+                sortedMarkers.reverse();
+            }
+
+            // Eğer kullanıcı "Tersine Çevir" butonuna bastıysa, mevcut sıralamayı tersine çevir.
+            if (window.isSortReversed) {
+                sortedMarkers.reverse();
+            }
+            
+            // Listeyi temizle ve sıralanmış verilerle doldur
+            markerList.innerHTML = '';
+            sortedMarkers.forEach(function(markerData) {
+                // Sıralanmış listedeki marker'ın orijinal `markersData` dizisindeki index'ini bulmalıyız.
+                // Çünkü `editMarker` fonksiyonu bu orijinal index'e göre çalışıyor.
+                const originalIndex = markersData.findIndex(m => m.id === markerData.id);
+                if (originalIndex === -1) return; // Eğer bir şekilde bulunamazsa (veri tutarsızlığı), bu adımı atla.
+
+                var li = document.createElement('li');
+                li.style.display = 'flex';
+                li.style.alignItems = 'center';
+                li.style.justifyContent = 'space-between';
+                li.style.padding = '8px 4px';
+                li.style.borderBottom = '1px solid #eee';
+
+                // Sol taraf: Başlık ve Tarihler
+                var infoDiv = document.createElement('div');
+                infoDiv.style.display = 'flex';
+                infoDiv.style.flexDirection = 'column';
+                infoDiv.style.gap = '4px';
+
+                var titleSpan = document.createElement('span');
+                titleSpan.textContent = markerData.title;
+                titleSpan.style.fontWeight = '600';
+
+                // Tarihleri içeren küçük bir div
+                var timestampsDiv = document.createElement('div');
+                timestampsDiv.style.fontSize = '11px';
+                timestampsDiv.style.color = '#777';
+                const createdAt = formatTimestamp(markerData.createdAt);
+                const updatedAt = formatTimestamp(markerData.updatedAt);
+                let timestampsText = `Oluşturma: ${createdAt || 'N/A'}`;
+                if (updatedAt && updatedAt !== createdAt) {
+                    timestampsText += ` | Son Değişiklik: ${updatedAt}`;
+                }
+                timestampsDiv.textContent = timestampsText;
+
+                infoDiv.appendChild(titleSpan);
+                infoDiv.appendChild(timestampsDiv);
+
+                // Sağ taraf: Butonlar
+                var btnDiv = document.createElement('div');
+                btnDiv.style.display = 'flex';
+                btnDiv.style.gap = '10px';
+        
+                var editBtn = document.createElement('button');
+                editBtn.textContent = 'Düzenle';
+                editBtn.onclick = function(e) {
+                    e.stopPropagation();
+                    editMarker(originalIndex); // Düğmelerin doğru çalışması için her zaman orijinal index'i kullan
+                };
+        
+                var deleteBtn = document.createElement('button');
+                deleteBtn.textContent = 'Sil';
+                deleteBtn.onclick = async function(e) {
+                    e.stopPropagation();
+                    if (confirm('Bu markerı silmek istediğinizden emin misiniz?')) {
+                        try {
+                            await deleteMarkerFromDB(markerData.id);
+                            await loadMarkersFromDB(); // Veriyi yeniden yükle, bu da loadAdminMarkers'ı ve sıralamayı yeniden tetikleyecek
+                        } catch (error) {
+                            alert('Marker silinemedi.');
+                        }
+                    }
+                };
+        
+                btnDiv.appendChild(editBtn);
+                btnDiv.appendChild(deleteBtn);
+        
+                li.appendChild(infoDiv); // Başlık ve tarihları içeren div'i ekle
+                li.appendChild(btnDiv);
+        
+                markerList.appendChild(li);
+            });
+        }
+
+        // Paneli ilk yüklemede veya veri güncellendiğinde varsayılan sıralama ile render et
+        renderSortedMarkers();
     }
     
     // Sınıf listesini yükleyen fonksiyon
@@ -1262,7 +1423,15 @@ if (advancedEditBtnMobile) {
     if (addNewBtn) {
         addNewBtn.addEventListener('click', function() {
             selectedMarkerIndex = -1;
-            const newMarkerData = { latLng: [imgHeight / 2, imgWidth / 2], title: '', description: '', images: [], class: '' };
+            const newMarkerData = { 
+                latLng: [imgHeight / 2, imgWidth / 2], 
+                title: '', 
+                description: '', 
+                images: [], 
+                class: '',
+                createdAt: new Date().toISOString(), // Oluşturma anı
+                updatedAt: new Date().toISOString()  // Güncelleme anı
+            };
             openEditModal(newMarkerData, selectedMarkerIndex);
             document.getElementById('admin-modal').style.display = 'none';
         });
@@ -1300,57 +1469,57 @@ if (advancedEditBtnMobile) {
         updateImageList();
     };
 
-    var addImageUrlBtn = document.getElementById('add-image-url');
+    const addImageUrlBtn = document.getElementById('add-image-url');
     if (addImageUrlBtn) {
         addImageUrlBtn.addEventListener('click', function() {
-            var url = document.getElementById('image-url-input').value;
-            if (url) {
-                tempImages.push(url);
-                updateImageList();
-                document.getElementById('image-url-input').value = '';
-                if (editModal) editModal.querySelector('#image-error').textContent = '';
-            } else {
-                if (editModal) editModal.querySelector('#image-error').textContent = 'Lütfen geçerli bir URL girin.';
-            }
-        });
-    }
+            const imageUrlInput = document.getElementById('image-url-input');
+            let imageError = document.getElementById('image-error');
+            const url = imageUrlInput.value.trim();
 
-    var imageFileInput = document.getElementById('image-file-input');
-    if (imageFileInput) {
-        imageFileInput.addEventListener('change', async function(e) {
-            var files = e.target.files;
-            if (files.length > 0) {
-                if (editModal) editModal.querySelector('#image-error').textContent = 'Görsel yükleniyor...';
+            // Uyarı mesajı yoksa oluştur
+            if (!imageError) {
+                imageError = document.createElement('div');
+                imageError.id = 'image-error';
             }
-            
-            for (let file of files) {
-                var formData = new FormData();
-                formData.append('image', file);
-                try {
-                    const response = await authFetch('/upload', {
-                        method: 'POST',
-                        body: formData
-                    });
-                    const result = await response.json();
-                    if (result.url) {
-                        tempImages.push(result.url);
-                        updateImageList();
-                        if (editModal) editModal.querySelector('#image-error').textContent = '';
-                    } else {
-                        if (editModal) editModal.querySelector('#image-error').textContent = 'Görsel yüklenemedi: ' + result.error;
-                    }
-                } catch (error) {
-                    console.error('Yükleme hatası:', error);
-                    if (editModal) editModal.querySelector('#image-error').textContent = 'Görsel yüklenemedi: Sunucu bağlantı hatası.';
+
+            function showError(msg) {
+                imageError.textContent = msg;
+                if (imageError.parentNode) imageError.parentNode.removeChild(imageError);
+                imageUrlInput.parentNode.insertBefore(imageError, imageUrlInput.nextSibling);
+            }
+
+            if (!url) {
+                showError('Lütfen bir görsel URL girin.');
+                return;
+            }
+
+            const validExt = /\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i;
+            if (!validExt.test(url)) {
+                showError('Lütfen geçerli bir görsel URL girin.');
+                return;
+            }
+
+            // Görsel yüklenebilir mi kontrolü (asenkron)
+            const img = new Image();
+            img.onload = function() {
+                // Yüklenebiliyorsa hata mesajını kaldır ve görseli ekle
+                if (imageError && imageError.parentNode) imageError.parentNode.removeChild(imageError);
+                if (!tempImages.includes(url)) {
+                    tempImages.push(url);
+                    updateImageList();
                 }
-            }
-            imageFileInput.value = '';
+                imageUrlInput.value = '';
+            };
+            img.onerror = function() {
+                showError('Lütfen geçerli ve erişilebilir bir görsel URL girin.');
+            };
+            img.src = url;
         });
     }
 
     // Düzenleme Modal Aç
     window.openEditModal = async function(data, index) {
-        // --- Modal arka planına tıklayınca marker düzenleme modalı kapanmasın ---
+        // --- Modal arka planına tıklınca marker düzenleme modalı kapanmasın ---
         var editModal = document.getElementById('edit-modal');
         if (editModal) {
             editModal.onclick = function(e) {
@@ -1388,6 +1557,32 @@ if (advancedEditBtnMobile) {
         selectedMarkerIndex = index;
         
         loadClassList();
+
+        // --- DÜZENLEME MODALINDA ZAMAN DAMGASI GÖSTER ---
+        const createdAt = formatTimestamp(data.createdAt);
+        const updatedAt = formatTimestamp(data.updatedAt);
+        let timestampsHtmlContent = '';
+        if (createdAt) {
+            timestampsHtmlContent += `Oluşturulma: ${createdAt}`;
+        }
+        if (updatedAt && updatedAt !== createdAt) {
+            timestampsHtmlContent += `<br>Son Değişiklik: ${updatedAt}`;
+        }
+
+        let timestampsDiv = document.getElementById('edit-modal-timestamps');
+        if (!timestampsDiv) {
+            timestampsDiv = document.createElement('div');
+            timestampsDiv.id = 'edit-modal-timestamps';
+            timestampsDiv.style.fontSize = '11px';
+            timestampsDiv.style.color = '#888';
+            timestampsDiv.style.marginBottom = '12px';
+            timestampsDiv.style.textAlign = 'left';
+            const titleInput = document.getElementById('title-input');
+            if (titleInput && titleInput.parentNode) {
+                titleInput.parentNode.insertBefore(timestampsDiv, titleInput);
+            }
+        }
+        timestampsDiv.innerHTML = timestampsHtmlContent;
 
 
         document.getElementById('title-input').value = data.title;
@@ -1459,12 +1654,8 @@ if (advancedEditBtnMobile) {
                 const tags = document.querySelectorAll('#class-tags span');
                 return Array.from(tags).map(t => t.childNodes[0].textContent.trim()).sort().join(',');
             })(),
-            color: (() => {
-                const colorRow = document.getElementById('marker-color-row');
-                if (!colorRow) return '';
-                const selected = Array.from(colorRow.children).find(box => box.style && box.style.boxShadow && box.style.boxShadow.includes('#007bff'));
-                return selected ? selected.style.background : '';
-            })(),
+            // --- DÜZELTME: Renk artık doğrudan selectedColor değişkeninden (HEX kodu) alınacak ---
+            color: selectedColor,
             barcode: (document.getElementById('barcode-input') || {}).value || '',
             images: (() => {
                 const imgs = document.querySelectorAll('#image-list img');
@@ -1506,7 +1697,7 @@ if (advancedEditBtnMobile) {
                     window.__activeModal = null;
                 }
                 if (window.__activeModal === 'edit-modal' && ev.target.classList.contains('close')) {
-                    // Sadece edit-modal açıkken ve .close'a tıklanmışsa, bu handler çalışsın
+                    // Sadece edit-modal açıkken ve .close'a tıklanmışsa, this handler çalışsın
                 } else if (window.__activeModal === 'edit-modal') {
                     // edit-modal açıkken başka bir kapatma event'i tetiklenirse, hiçbir şey yapma
                     return false;
@@ -1532,12 +1723,7 @@ if (advancedEditBtnMobile) {
                         const tags = document.querySelectorAll('#class-tags span');
                         return Array.from(tags).map(t => t.childNodes[0].textContent.trim()).sort().join(',');
                     })(),
-                    color: (() => {
-                        const colorRow = document.getElementById('marker-color-row');
-                        if (!colorRow) return '';
-                        const selected = Array.from(colorRow.children).find(box => box.style && box.style.boxShadow && box.style.boxShadow.includes('#007bff'));
-                        return selected ? selected.style.background : '';
-                    })(),
+                    color: selectedColor, // Kapsam içinde olduğu için artık erişilebilir
                     barcode: (document.getElementById('barcode-input') || {}).value || '',
                     images: (() => {
                         const imgs = document.querySelectorAll('#image-list img');
@@ -1575,7 +1761,7 @@ function showUnsavedChangesPanel(onConfirm, onCancel) {
     // Panel açılırken marker düzenleme modalının close butonlarını devre dışı bırak
     var editModal = document.getElementById('edit-modal');
     var closeBtns = editModal ? editModal.querySelectorAll('.close') : [];
-    // Tüm close eventlerini geçici olarak kaldır
+             // Tüm close eventlerini geçici olarak kaldır
     closeBtns.forEach(function(b){
         b.__old_onclick = b.onclick;
         b.onclick = function(e) { e.stopPropagation(); e.preventDefault(); };
@@ -1600,6 +1786,7 @@ function showUnsavedChangesPanel(onConfirm, onCancel) {
     // Panel açıldığında body'ye class ekle
     document.body.classList.add('unsaved-panel-open');
     document.getElementById('unsaved-yes').onclick = function(e) {
+       
         e.stopPropagation();
         panel.style.display = 'none';
         document.body.classList.remove('unsaved-panel-open');
@@ -1608,6 +1795,9 @@ function showUnsavedChangesPanel(onConfirm, onCancel) {
             if (b.__old_onclick) b.onclick = b.__old_onclick;
             delete b.__old_onclick;
         });
+        // --- EKLENDİ: Kaydetmeden çıkınca tempImages temizlensin ---
+        tempImages = [];
+        updateImageList();
         if (onConfirm) onConfirm();
     };
     document.getElementById('unsaved-no').onclick = function(e) {
@@ -1624,7 +1814,8 @@ function showUnsavedChangesPanel(onConfirm, onCancel) {
         if (editModal) editModal.style.display = 'block';
         if (onCancel) onCancel();
     };
-    // Panel dışına tıklanınca kapanmasın
+   
+
     panel.onclick = function(e) {
         // Sadece overlay'e tıklanırsa hiçbir şey yapma, paneli kapatma
         if (e.target === panel) {
@@ -1662,7 +1853,7 @@ function showUnsavedChangesPanel(onConfirm, onCancel) {
                 alert('Barkod eklemek için Barkod Okut butonunu kullanın. Okutulan barkod otomatik atanacaktır.');
             };
             removeBarcodeBtn.onclick = function() {
-                if (confirm('Barkodu silmek istediğinize emin misiniz?')) {
+                if (confirm('Barkodu silmek istediğinizden emin misiniz?')) {
                     barcodeInput.value = '';
                     addBarcodeBtn.style.display = 'inline-block';
                     removeBarcodeBtn.style.display = 'none';
@@ -1685,18 +1876,20 @@ function showUnsavedChangesPanel(onConfirm, onCancel) {
             newTagsDiv.innerHTML = '';
             markerClasses.forEach((cls, idx) => {
                 const tag = document.createElement('span');
-                tag.style.background = '#e0e0e0';
                 tag.style.borderRadius = '12px';
                 tag.style.padding = '2px 10px 2px 8px';
                 tag.style.display = 'inline-flex';
                 tag.style.alignItems = 'center';
-                tag.style.fontSize = '0.95em';
-                tag.style.marginRight = '4px';
-                tag.innerHTML = `${cls} <span style="margin-left:6px;cursor:pointer;color:#c00;font-weight:bold;" title="Kaldır">&times;</span>`;
-                tag.querySelector('span').onclick = function() {
-                    markerClasses.splice(idx, 1);
+                tag.style.fontSize = '13px';
+                let x = document.createElement('span');
+                x.textContent = '×';
+                x.style.marginLeft = '6px';
+                x.style.cursor = 'pointer';
+                x.onclick = function() {
+                    markerClasses = markerClasses.filter(c => c !== cls);
                     renderTags();
                 };
+                tag.appendChild(x);
                 newTagsDiv.appendChild(tag);
             });
         }
@@ -1742,7 +1935,7 @@ function showUnsavedChangesPanel(onConfirm, onCancel) {
             '#bcf60c','#fabebe','#008080','#e6beff','#9a6324','#fffac8','#800000','#aaffc3',
             '#808000','#ffd8b1','#000075','#808080','#ffffff','#000000','#a9a9a9','#ff69b4'
         ];
-        let selectedColor = data.color || markerColors[0];
+        selectedColor = data.color || markerColors[0]; // <-- HATA DÜZELTME: Kapsamı genişletilmiş değişkene ata
         function updateColorBoxes() {
             Array.from(colorRow.children).forEach((box, i) => {
                 if (i === 0) return; // başlık
@@ -1750,7 +1943,7 @@ function showUnsavedChangesPanel(onConfirm, onCancel) {
                 box.style.border = (color === selectedColor) ? '3px solid #333' : '2px solid #ccc';
                 if (color === selectedColor) {
                     box.style.boxShadow = '0 0 0 3px #007bff';
-                    box.innerHTML = '<svg width="14" height="14" style="position:absolute;top:4px;left:4px;pointer-events:none;" viewBox="0 0 14 14"><polyline points="3,7 6,10 11,4" style="fill:none;stroke:#007bff;stroke-width="2.5;stroke-linecap:round;stroke-linejoin:round"/></svg>';
+                    box.innerHTML = '<svg width="14" height="14" style="position:absolute;top:4px;left:4px;pointer-events:none;" viewBox="0 0 14 14"><polyline points="3,7 6,10 11,4" style="fill:none;stroke:#007bff;stroke-width=2.5;stroke-linecap:round;stroke-linejoin:round"/></svg>';
                     box.style.position = 'relative';
                 } else {
                     box.style.boxShadow = '';
@@ -1770,16 +1963,17 @@ function showUnsavedChangesPanel(onConfirm, onCancel) {
             colorBox.title = color;
             if (color === selectedColor) {
                 colorBox.style.boxShadow = '0 0 0 3px #007bff';
-                colorBox.innerHTML = '<svg width="14" height="14" style="position:absolute;top:4px;left:4px;pointer-events:none;" viewBox="0 0 14 14"><polyline points="3,7 6,10 11,4" style="fill:none;stroke:#007bff;stroke-width="2.5;stroke-linecap:round;stroke-linejoin:round"/></svg>';
+                colorBox.innerHTML = '<svg width="14" height="14" style="position:absolute;top:4px;left:4px;pointer-events:none;" viewBox="0 0 14 14"><polyline points="3,7 6,10 11,4" style="fill:none;stroke:#007bff;stroke-width=2.5;stroke-linecap:round;stroke-linejoin:round"/></svg>';
                 colorBox.style.position = 'relative';
             }
             colorBox.onclick = function() {
                 selectedColor = color;
                 updateColorBoxes();
+                // --- KALDIRILDI: Renk değiştiğinde snapshot GÜNCELLENMEYECEK. ---
             };
             colorRow.appendChild(colorBox);
         });
-        // Renk kutucuklarını classSelect'in altına (tag'lerin altına) ekle
+        // Renk kutucularını classSelect'in altına (tag'lerin altına) ekle
         if (classSelect && classSelect.parentNode) {
             classSelect.parentNode.insertBefore(colorRow, newTagsDiv.nextSibling);
         }
@@ -1793,6 +1987,12 @@ function showUnsavedChangesPanel(onConfirm, onCancel) {
         if (!form) return;
             form.onsubmit = async function(ev) {
                 ev.preventDefault();
+
+                // --- YENİ: Kaydediliyor ekranını göster ---
+                const savingOverlay = document.getElementById('saving-overlay');
+                if (savingOverlay) savingOverlay.style.display = 'flex';
+
+
                 // Konum sınır kontrolü
                 var latlngStr = document.getElementById('latlng-input').value.replace(/\s+/g, '');
                 var latlngArr = latlngStr.split(',').map(Number);
@@ -1806,6 +2006,7 @@ function showUnsavedChangesPanel(onConfirm, onCancel) {
                     lng < 0 || lng > imgWidth
                 ) {
                     alert('Seçilen konum PNG sınırları dışında! Marker eklenemez/düzenlenemez.');
+                    if (savingOverlay) savingOverlay.style.display = 'none'; // Hata durumunda overlay'i gizle
                     return;
                 }
 
@@ -1814,6 +2015,7 @@ function showUnsavedChangesPanel(onConfirm, onCancel) {
                 if (barcodeValue) {
                     if (!/^\d{12}$/.test(barcodeValue)) {
                         alert('Barkod numarası 12 haneli bir sayı olmalıdır.');
+                        if (savingOverlay) savingOverlay.style.display = 'none'; // Hata durumunda overlay'i gizle
                         barcodeInput.focus();
                         return;
                     }
@@ -1825,6 +2027,7 @@ function showUnsavedChangesPanel(onConfirm, onCancel) {
                     });
                     if (duplicate) {
                         alert('Bu barkod başka bir markerda zaten kayıtlı. Lütfen farklı bir barkod girin.');
+                        if (savingOverlay) savingOverlay.style.display = 'none'; // Hata durumunda overlay'i gizle
                         barcodeInput.focus();
                         return;
                     }
@@ -1838,7 +2041,9 @@ function showUnsavedChangesPanel(onConfirm, onCancel) {
                     class: markerClasses, // Artık dizi
                     color: selectedColor,
                     barcode: barcodeInput ? barcodeInput.value : undefined,
-                    draggable: !lockCheckbox.checked // Kilitli değilse draggable true
+                    draggable: !lockCheckbox.checked, // Kilitli değilse draggable true
+                    createdAt: (selectedMarkerIndex !== -1 && markersData[selectedMarkerIndex].createdAt) ? markersData[selectedMarkerIndex].createdAt : new Date().toISOString(),
+                    updatedAt: new Date().toISOString()
                 };
 
                 try {
@@ -1855,8 +2060,13 @@ function showUnsavedChangesPanel(onConfirm, onCancel) {
                     setTimeout(loadAdminMarkers, 100); // Kısa bir gecikme ile çağırmak markerların güncellenmesini garanti eder
                     editModal.style.display = 'none';
                     document.getElementById('admin-modal').style.display = 'block';
+                    // --- HATA DÜZELTME: Kaydettikten sonra snapshot'ı temizle ---
+                    window.markerFormSnapshot = null;
                 } catch (error) {
                     alert('Marker kaydedilemedi.');
+                } finally {
+                    // --- YENİ: İşlem bitince kaydediliyor ekranını gizle ---
+                    if (savingOverlay) savingOverlay.style.display = 'none';
                 }
             };
 
@@ -1970,7 +2180,11 @@ function showUnsavedChangesPanel(onConfirm, onCancel) {
     if (imageViewerCloseBtn) {
         imageViewerCloseBtn.addEventListener('click', function() {
             if (imageViewerModal) imageViewerModal.style.display = 'none';
-            if (editModal) editModal.querySelector('#image-error').textContent = '';
+            // HATA KONTROLÜ EKLENDİ ↓↓↓
+            if (editModal) {
+                var imageErrorElem = editModal.querySelector('#image-error');
+                if (imageErrorElem) imageErrorElem.textContent = '';
+            }
         });
     }
     
@@ -2199,157 +2413,40 @@ function showUnsavedChangesPanel(onConfirm, onCancel) {
         }
     }
 
-    document.addEventListener('DOMContentLoaded', function() {
-        console.log('DOMContentLoaded tetiklendi');
-        initApp();
-    });
-
-    // Kullanıcı modunda barkod okutma butonunu göster
-    setTimeout(function() {
-        if (typeof adminMode !== 'undefined' && !adminMode) {
-            var userBarcodeBtn = document.getElementById('user-barcode-btn');
-            if (userBarcodeBtn) {
-                userBarcodeBtn.style.display = 'flex';
-                userBarcodeBtn.onclick = function() {
-                    openUserBarcodeModal();
-                };
-            }
-            var userBarcodeModalClose = document.getElementById('user-barcode-modal-close');
-            if (userBarcodeModalClose) {
-                userBarcodeModalClose.onclick = closeUserBarcodeModal;
-            }
-        }
-    }, 300);
-
-    // Kullanıcı modunda barkod okutma modalı ve fonksiyonu (admin modundan bağımsız)
-    let userBarcodeStream = null;
-    let hideAllFiltersAutoDisabled = false;
-    function openUserBarcodeModal() {
-        var modal = document.getElementById('user-barcode-modal');
-        var video = document.getElementById('user-barcode-video');
-        var status = document.getElementById('user-barcode-status');
-        if (!modal || !video) return;
-        // Hepsini gizle otomatik kaldır
-        var hideAllFilters = document.getElementById('hide-all-filters');
-        if (hideAllFilters && hideAllFilters.checked) {
-            hideAllFilters.checked = false;
-            if (typeof updateFilters === 'function') updateFilters();
-            hideAllFiltersAutoDisabled = true;
-        } else {
-            hideAllFiltersAutoDisabled = false;
-        }
-        modal.style.display = 'block';
-        status.textContent = 'Kamera başlatılıyor...';
-        navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
-            .then(function(stream) {
-                userBarcodeStream = stream;
-                video.srcObject = stream;
-                video.play();
-                status.textContent = 'Barkodu çerçeveye hizalayın';
-                scanUserBarcodeLoop();
-            })
-            .catch(function(err) {
-                status.textContent = 'Kamera erişimi reddedildi veya desteklenmiyor.';
+    // --- Sayfa yenileme/kapama sırasında kaydedilmemiş marker değişikliği varsa uyarı ---
+    window.addEventListener('beforeunload', function(e) {
+        // Eğer marker düzenleme modalı açıksa ve kaydedilmemiş değişiklik varsa uyarı göster
+        var editModal = document.getElementById('edit-modal');
+        if (editModal && editModal.style.display === 'block' && window.markerFormSnapshot) {
+            // Mevcut form verisini al
+            var currentData = JSON.stringify({
+                title: document.getElementById('title-input')?.value || '',
+                description: document.getElementById('desc-input')?.value || '',
+                latLng: document.getElementById('latlng-input')?.value || '',
+                class: (() => {
+                    const tags = document.querySelectorAll('#class-tags span');
+                    return Array.from(tags).map(t => t.childNodes[0].textContent.trim()).sort().join(',');
+                })(),
+                color: selectedColor, // Kapsam içinde olduğu için artık erişilebilir
+                barcode: (document.getElementById('barcode-input') || {}).value || '',
+                images: (() => {
+                    const imgs = document.querySelectorAll('#image-list img');
+                    return Array.from(imgs).map(img => img.src).join(',');
+                })(),
+                draggable: document.getElementById('marker-lock-checkbox') && !document.getElementById('marker-lock-checkbox').checked ? '1' : '0'
             });
-    }
-    function closeUserBarcodeModal() {
-        var modal = document.getElementById('user-barcode-modal');
-        var video = document.getElementById('user-barcode-video');
-        if (userBarcodeStream) {
-            userBarcodeStream.getTracks().forEach(function(track) { track.stop(); });
-            userBarcodeStream = null;
-        }
-        if (video) video.srcObject = null;
-        if (modal) modal.style.display = 'none';
-    }
-    function scanUserBarcodeLoop() {
-        var video = document.getElementById('user-barcode-video');
-        var status = document.getElementById('user-barcode-status');
-        if (!video || video.readyState !== 4) {
-            setTimeout(scanUserBarcodeLoop, 200);
-            return;
-        }
-        var canvas = document.createElement('canvas');
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        var ctx = canvas.getContext('2d');
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        var imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        var code = window.jsQR(imageData.data, canvas.width, canvas.height);
-        if (code) {
-            status.textContent = 'Barkod bulundu: ' + code.data;
-            handleUserBarcodeResult(code.data);
-            closeUserBarcodeModal();
-            return;
-        }
-        setTimeout(scanUserBarcodeLoop, 300);
-    }
-    function handleUserBarcodeResult(barcode) {
-        // Sadece kullanıcı modunda: marker eşleşirse haritayı ortala ve zoomla, yoksa uyarı ver
-        var foundIndex = markersData.findIndex(function(m) { return m.barcode === barcode; });
-        // Önce tüm markerların glow'unu kaldır
-        markerLayers.forEach(layer => {
-            var iconDiv = layer.marker.getElement();
-            if (iconDiv) iconDiv.classList.remove('marker-glow-red');
-        });
-        if (foundIndex !== -1) {
-            var markerObj = markerLayers[foundIndex];
-            var marker = markerObj && markerObj.marker ? markerObj.marker : null;
-            if (marker && marker.getLatLng) {
-                map.setView(marker.getLatLng(), 1, { animate: true });
-                marker.openPopup();
-                var iconDiv = marker.getElement();
-                if (iconDiv) iconDiv.classList.add('marker-glow-red');
+
+            if (window.markerFormSnapshot && currentData !== window.markerFormSnapshot) {
+                e.preventDefault();
+                e.returnValue = '';
+                return '';
             }
-        } else {
-            // Sonuç yoksa ve hepsini gizle otomatik kaldırıldıysa tekrar aktif et
-            var hideAllFilters = document.getElementById('hide-all-filters');
-            if (hideAllFilters && hideAllFiltersAutoDisabled) {
-                hideAllFilters.checked = true;
-                if (typeof updateFilters === 'function') updateFilters();
-            }
-            alert('Barkoda ait marker bulunamadı.');
         }
-    }
+    });
 }
 
 
-// --- Sayfa yenileme/kapama sırasında kaydedilmemiş marker değişikliği varsa uyarı ---
-window.addEventListener('beforeunload', function(e) {
-    // Eğer marker düzenleme modalı açıksa ve kaydedilmemiş değişiklik varsa uyarı göster
-    var editModal = document.getElementById('edit-modal');
-    if (editModal && editModal.style.display === 'block' && window.markerFormSnapshot) {
-        // Mevcut form verisini al
-        var currentData = JSON.stringify({
-            title: document.getElementById('title-input')?.value || '',
-            description: document.getElementById('desc-input')?.value || '',
-            latLng: document.getElementById('latlng-input')?.value || '',
-            class: (() => {
-                const tags = document.querySelectorAll('#class-tags span');
-                return Array.from(tags).map(t => t.childNodes[0].textContent.trim()).sort().join(',');
-            })(),
-            color: (() => {
-                const colorRow = document.getElementById('marker-color-row');
-                if (!colorRow) return '';
-                const selected = Array.from(colorRow.children).find(box => box.style && box.style.boxShadow && box.style.boxShadow.includes('#007bff'));
-                return selected ? selected.style.background : '';
-            })(),
-            barcode: (document.getElementById('barcode-input') || {}).value || '',
-            images: (() => {
-                const imgs = document.querySelectorAll('#image-list img');
-                return Array.from(imgs).map(img => img.src).join(',');
-            })(),
-            draggable: document.getElementById('marker-lock-checkbox') && !document.getElementById('marker-lock-checkbox').checked ? '1' : '0'
-        });
-        if (currentData !== window.markerFormSnapshot) {
-            e.preventDefault();
-            e.returnValue = '';
-            return '';
-        }
-    }
-});
-
-document.addEventListener('DOMContentLoaded', function() {
+window.addEventListener('DOMContentLoaded', function() {
     initApp();
 });
 
