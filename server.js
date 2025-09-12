@@ -69,6 +69,10 @@ app.post('/api/login', async (req, res) => {
     try {
         const admin = admins.find(a => a.username === username && a.password === password);
         if (admin) {
+            // YENİ: Başarılı girişte son giriş zamanını Firebase'e kaydet
+            const lastLoginTime = new Date().toISOString();
+            await db.ref(`lastLogins/${admin.username}`).set(lastLoginTime);
+
             const token = jwt.sign({ username: admin.username }, jwtSecret, { expiresIn: '1h' });
             res.json({ success: true, token });
         } else {
@@ -76,6 +80,26 @@ app.post('/api/login', async (req, res) => {
         }
     } catch (error) {
         console.error('Login hatası:', error);
+        res.status(500).json({ success: false, message: 'Sunucu hatası.' });
+    }
+});
+
+// YENİ: Son giriş zamanını getiren endpoint
+app.get('/api/last-login', authenticateJWT, async (req, res) => {
+    try {
+        const username = req.user.username;
+        const snapshot = await db.ref(`lastLogins/${username}`).once('value');
+        const lastLogin = snapshot.val();
+        if (lastLogin) {
+            res.json({ success: true, lastLogin });
+        } else {
+            // Eğer bir kayıt yoksa, token geçerli olduğu sürece yeni bir kayıt oluşturup devam et.
+            const newLoginTime = new Date().toISOString();
+            await db.ref(`lastLogins/${username}`).set(newLoginTime);
+            res.json({ success: true, lastLogin: newLoginTime });
+        }
+    } catch (error) {
+        console.error('Son giriş zamanı alınamadı:', error);
         res.status(500).json({ success: false, message: 'Sunucu hatası.' });
     }
 });
