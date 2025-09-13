@@ -44,6 +44,44 @@ function formatTimestamp(timestamp) {
     return `${day}.${month}.${year} ${hours}:${minutes}`;
 }
 
+// --- YENİ: Son admin girişini gösteren fonksiyon ve panel alanı ---
+async function showLastAdminLogin() {
+    // Sadece admin modunda göster
+    if (!authToken) return;
+    try {
+        const response = await authFetch('/api/last-login');
+        const result = await response.json();
+        if (result.success && result.lastLogin) {
+            // Panelde gösterecek alanı bul veya oluştur
+            let panel = document.getElementById('last-admin-login');
+            if (!panel) {
+                // Admin panel başlığının hemen altına ekle
+                const adminModal = document.getElementById('admin-modal');
+                if (adminModal) {
+                    const h2 = adminModal.querySelector('h2');
+                    panel = document.createElement('div');
+                    panel.id = 'last-admin-login';
+                    panel.style.fontSize = '13px';
+                    panel.style.color = '#007bff';
+                    panel.style.margin = '4px 0 10px 0';
+                    if (h2 && h2.parentNode) {
+                        h2.parentNode.insertBefore(panel, h2.nextSibling);
+                    } else {
+                        adminModal.insertBefore(panel, adminModal.firstChild);
+                    }
+                }
+            }
+            if (panel) {
+                panel.textContent = 'Son giriş: ' + formatTimestamp(result.lastLogin);
+            }
+        }
+    } catch (e) {
+        // Hata olursa paneli gizle
+        let panel = document.getElementById('last-admin-login');
+        if (panel) panel.style.display = 'none';
+    }
+}
+
 function initApp() {
     // --- YENİ: Global "Kaydediliyor..." overlay'i oluştur ---
     let savingOverlay = document.getElementById('saving-overlay');
