@@ -1919,6 +1919,8 @@ function showUnsavedChangesPanel(onConfirm, onCancel) {
                 tag.style.display = 'inline-flex';
                 tag.style.alignItems = 'center';
                 tag.style.fontSize = '13px';
+                // --- DÜZELTME: Sınıf adını ekle ---
+                tag.textContent = cls;
                 let x = document.createElement('span');
                 x.textContent = '×';
                 x.style.marginLeft = '6px';
