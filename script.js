@@ -171,7 +171,7 @@ function showSessionEndedPanel() {
         overlay.style.width = '100vw';
         overlay.style.height = '100vh';
         overlay.style.background = 'rgba(0,0,0,0.5)';
-        overlay.style.zIndex = '9999';
+        overlay.style.zIndex = '100002';
         overlay.style.display = 'flex';
         overlay.style.alignItems = 'center';
         overlay.style.justifyContent = 'center';
