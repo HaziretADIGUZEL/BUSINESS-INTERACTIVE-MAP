@@ -21,8 +21,10 @@ const db = admin.database();
 // Middleware
 app.use(cors()); // CORS'u etkinleştir
 app.use(express.json()); // JSON gövdelerini ayrıştır
-app.use(express.static('.')); // Statik dosyaları sun
-app.use('/uploads', express.static('uploads')); // Görselleri sun
+
+// Statik dosyaları (CSS, JS, resimler) API rotalarından ÖNCE sun
+app.use(express.static(path.join(__dirname)));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Admin kimlik bilgilerini ortam değişkenlerinden al
 const admins = JSON.parse(process.env.ADMINS_DATA || '[]'); // JSON stringini parse ederek admin listesini al
@@ -198,6 +200,12 @@ app.delete('/api/classes/:name', authenticateJWT, async (req, res) => {
         console.error('Sınıf silme hatası:', error);
         res.status(500).json({ success: false, error: 'Sınıf silinemedi.' });
     }
+});
+
+// "Catch-all" rotası: API ile eşleşmeyen tüm GET isteklerini index.html'e yönlendirir.
+// Bu rotanın tüm API endpoint'lerinden SONRA gelmesi çok önemlidir.
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'index.html'));
 });
 
 const port = process.env.PORT || 8000;
