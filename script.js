@@ -74,12 +74,121 @@ async function showLastAdminLogin() {
             if (panel) {
                 panel.textContent = 'Son giriş: ' + formatTimestamp(result.lastLogin);
             }
+
+            // --- EKLENDİ: Oturum süresi kontrolü ve uyarı panelleri ---
+            // Son giriş zamanı ile şimdiki zaman arasındaki farkı dakika cinsinden hesapla
+            const now = Date.now();
+            let lastLoginTime;
+            if (typeof result.lastLogin === 'object' && result.lastLogin.seconds) {
+                lastLoginTime = result.lastLogin.seconds * 1000;
+            } else {
+                lastLoginTime = new Date(result.lastLogin).getTime();
+            }
+            if (!lastLoginTime || isNaN(lastLoginTime)) return;
+
+            // Her 30 saniyede bir kontrol başlat (sadece bir kez başlatılır)
+            if (!window.__adminSessionIntervalStarted) {
+                window.__adminSessionIntervalStarted = true;
+                window.__adminSessionWarned = false; // 5 dakika kala uyarı gösterildi mi?
+                setInterval(() => {
+                    // Oturum süresi dakika cinsinden
+                    const diffMin = (Date.now() - lastLoginTime) / 60000;
+                    // 54 ve üstü ise (5 dakika kaldı) ve henüz uyarı gösterilmediyse
+                    if (diffMin >= 54 && diffMin < 59 && !window.__adminSessionWarned) {
+                        window.__adminSessionWarned = true;
+                        showSessionWarningPanel();
+                    }
+                    // 59 ve üstü ise (oturum bitti)
+                    if (diffMin >= 59) {
+                        showSessionEndedPanel();
+                    }
+                }, 30000);
+            }
         }
     } catch (e) {
         // Hata olursa paneli gizle
         let panel = document.getElementById('last-admin-login');
         if (panel) panel.style.display = 'none';
     }
+}
+
+// --- EKLENDİ: 5 dakika kala uyarı paneli ---
+function showSessionWarningPanel() {
+    if (document.getElementById('session-warning-panel')) return;
+    const panel = document.createElement('div');
+    panel.id = 'session-warning-panel';
+    panel.style.position = 'fixed';
+    panel.style.top = '0';
+    panel.style.left = '0';
+    panel.style.width = '100vw';
+    panel.style.height = '100vh';
+    panel.style.background = 'rgba(0,0,0,0.45)';
+    panel.style.zIndex = '100000';
+    panel.style.display = 'flex';
+    panel.style.alignItems = 'center';
+    panel.style.justifyContent = 'center';
+    panel.innerHTML = `
+        <div style="background:#fff;padding:32px 48px;border-radius:18px;font-size:1.5rem;font-weight:600;color:#e67e22;box-shadow:0 2px 16px rgba(0,0,0,0.18);text-align:center;">
+            Son mevcut oturum sürenizin dolmasına <b>5 dakika dan az zaman kaldı.</b> kaldı.<br>
+            <button id="session-warning-ok" style="margin-top:18px;padding:8px 32px;font-size:1.1rem;border-radius:8px;background:#007bff;color:#fff;border:none;cursor:pointer;">Tamam</button>
+        </div>
+    `;
+    document.body.appendChild(panel);
+    document.getElementById('session-warning-ok').onclick = function() {
+        if (panel && panel.parentNode) panel.parentNode.removeChild(panel);
+    };
+}
+
+// --- EKLENDİ: Oturum sonlandı paneli ---
+function showSessionEndedPanel() {
+    if (document.getElementById('session-ended-panel')) return;
+    const panel = document.createElement('div');
+    panel.id = 'session-ended-panel';
+    panel.style.position = 'fixed';
+    panel.style.top = '0';
+    panel.style.left = '0';
+    panel.style.width = '100vw';
+    panel.style.height = '100vh';
+    panel.style.background = 'rgba(0,0,0,0.55)';
+    panel.style.zIndex = '100001';
+    panel.style.display = 'flex';
+    panel.style.alignItems = 'center';
+    panel.style.justifyContent = 'center';
+    panel.innerHTML = `
+        <div style="background:#fff;padding:32px 48px;border-radius:18px;font-size:1.7rem;font-weight:600;color:#e53935;box-shadow:0 2px 16px rgba(0,0,0,0.18);text-align:center;">
+            Oturumunuz sonlandı.<br>
+            <button id="session-ended-ok" style="margin-top:18px;padding:8px 32px;font-size:1.1rem;border-radius:8px;background:#e53935;color:#fff;border:none;cursor:pointer;">Tamam</button>
+        </div>
+    `;
+    document.body.appendChild(panel);
+    // --- HATA DÜZELTME: showLogoutOverlay fonksiyonunu burada tanımlı hale getir ---
+    function showLogoutOverlay() {
+        var overlay = document.createElement('div');
+        overlay.id = 'logout-overlay';
+        overlay.style.position = 'fixed';
+        overlay.style.top = '0';
+        overlay.style.left = '0';
+        overlay.style.width = '100vw';
+        overlay.style.height = '100vh';
+        overlay.style.background = 'rgba(0,0,0,0.5)';
+        overlay.style.zIndex = '9999';
+        overlay.style.display = 'flex';
+        overlay.style.alignItems = 'center';
+        overlay.style.justifyContent = 'center';
+        overlay.innerHTML = '<div style="background:#fff;padding:32px 48px;border-radius:18px;font-size:2rem;font-weight:600;color:#007bff;box-shadow:0 2px 16px rgba(0,0,0,0.18);">Çıkış yapılıyor...</div>';
+        document.body.appendChild(overlay);
+    }
+    document.getElementById('session-ended-ok').onclick = function() {
+        // Admin modunu kapat butonu işleviyle aynı: localStorage'dan authToken sil, adminMode=false, reload
+        localStorage.removeItem('authToken');
+        authToken = null;
+        if (typeof setAdminMode === 'function') setAdminMode(false);
+        // Çıkış overlay'i göster
+        showLogoutOverlay();
+        setTimeout(function() {
+            window.location.reload();
+        }, 2200);
+    };
 }
 
 function initApp() {
@@ -286,6 +395,8 @@ function initApp() {
     // Sayfa açılışında verileri backend'den yükle
     loadMarkersFromDB();
     loadClassesFromDB();
+    // --- EKLENDİ: Son admin login panelini başlat ---
+    showLastAdminLogin();
 
     // Admin modu durumunu kontrol et
     function setAdminMode(active) {
@@ -1147,6 +1258,12 @@ if (advancedEditBtnMobile) {
                     // Giriş başarılıysa overlay 2 saniye kalsın, sonra reload
                     authToken = result.token;
                     localStorage.setItem('authToken', authToken);
+                    // --- KULLANICI ADINI LOCALSTORAGE'A KAYDET ---
+                    if (result.username) {
+                        localStorage.setItem('adminUsername', result.username);
+                    } else {
+                        localStorage.setItem('adminUsername', username);
+                    }
                     setTimeout(function() {
                         window.location.reload();
                     }, 2000);
@@ -1481,6 +1598,8 @@ if (advancedEditBtnMobile) {
             var latLng = [e.latlng.lat.toFixed(2), e.latlng.lng.toFixed(2)];
             document.getElementById('latlng-input').value = latLng.join(', ');
             var tempMarker = L.marker(latLng).addTo(map);
+
+
             setTimeout(function() { map.removeLayer(tempMarker); }, 2000);
         }
     });
@@ -2485,9 +2604,60 @@ function showUnsavedChangesPanel(onConfirm, onCancel) {
     });
 }
 
+// --- KULLANICI ADI PANELİ EKLE (her zaman, her yerde görünecek, sol altta küçük) ---
+function showAdminUsernamePanel() {
+    let username = localStorage.getItem('adminUsername');
+    let token = localStorage.getItem('authToken');
+    let panel = document.getElementById('admin-username-panel');
+    if (!username || !token) {
+        if (panel) panel.style.display = 'none';
+        return;
+    }
+    if (!panel) {
+        panel = document.createElement('div');
+        panel.id = 'admin-username-panel';
+        panel.style.position = 'fixed';
+        panel.style.left = '12px';
+        panel.style.bottom = '12px';
+        panel.style.background = 'rgba(30,30,30,0.82)';
+        panel.style.color = '#fff';
+        panel.style.fontSize = '13px';
+        panel.style.padding = '4px 14px 4px 8px';
+        panel.style.borderRadius = '16px';
+        panel.style.zIndex = '99999';
+        panel.style.pointerEvents = 'none';
+        panel.style.userSelect = 'none';
+        panel.style.fontWeight = '500';
+        panel.style.boxShadow = '0 2px 8px rgba(0,0,0,0.18)';
+        panel.style.display = 'flex';
+        panel.style.alignItems = 'center';
+        // Görsel (avatar) ekle
+        const img = document.createElement('img');
+        img.src = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(username) + '&background=007bff&color=fff&size=32&rounded=true';
+        img.alt = 'Admin';
+        img.style.width = '22px';
+        img.style.height = '22px';
+        img.style.borderRadius = '50%';
+        img.style.marginRight = '7px';
+        img.style.background = '#fff';
+        img.style.flexShrink = '0';
+        panel.appendChild(img);
+        const span = document.createElement('span');
+        span.id = 'admin-username-panel-text';
+        panel.appendChild(span);
+        document.body.appendChild(panel);
+    }
+    // Sadece text kısmını güncelle
+    const span = panel.querySelector('#admin-username-panel-text');
+    if (span) {
+        span.textContent = username;
+    }
+    panel.style.display = 'flex';
+}
 
 window.addEventListener('DOMContentLoaded', function() {
     initApp();
+    showAdminUsernamePanel();
 });
 
 // Hamburger menü ve mobil panel işlevleri
