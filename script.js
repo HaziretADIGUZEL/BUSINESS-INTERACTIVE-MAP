@@ -29,71 +29,6 @@ async function authFetch(url, options = {}) {
     return response;
 }
 
-// YENİ: Oturum kontrolü ve sonlandırma fonksiyonu
-let sessionCheckInterval = null;
-async function checkSession() {
-    if (!authToken) {
-        if (sessionCheckInterval) clearInterval(sessionCheckInterval);
-        return;
-    }
-
-    try {
-        const response = await authFetch('/api/last-login');
-        if (!response.ok) {
-            // authFetch 401/403 hatasını zaten yakalayıp çıkış yaptırır.
-            // Diğer hatalar için interval'ı durduralım.
-            if (sessionCheckInterval) clearInterval(sessionCheckInterval);
-            console.error('Oturum kontrolü başarısız, durum:', response.status);
-            return;
-        }
-        const data = await response.json();
-        if (!data.success || !data.lastLogin) {
-            console.error('Geçerli bir son giriş zamanı alınamadı.');
-            return;
-        }
-
-        const lastLoginTime = new Date(data.lastLogin);
-        const now = new Date();
-        const diffMinutes = (now - lastLoginTime) / (1000 * 60);
-
-        if (diffMinutes > 59) {
-            if (sessionCheckInterval) clearInterval(sessionCheckInterval);
-            
-            // Z-index'i en yüksek olan bir uyarı kutusu göster
-            const alertOverlay = document.createElement('div');
-            alertOverlay.style.position = 'fixed';
-            alertOverlay.style.top = '0';
-            alertOverlay.style.left = '0';
-            alertOverlay.style.width = '100%';
-            alertOverlay.style.height = '100%';
-            alertOverlay.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
-            alertOverlay.style.zIndex = '100000';
-            alertOverlay.style.display = 'flex';
-            alertOverlay.style.justifyContent = 'center';
-            alertOverlay.style.alignItems = 'center';
-            alertOverlay.innerHTML = `
-                <div style="background: white; padding: 30px; border-radius: 10px; text-align: center; box-shadow: 0 5px 15px rgba(0,0,0,0.3);">
-                    <p style="margin: 0 0 20px; font-size: 1.2rem;">Oturum süreniz dolmuştur.</p>
-                    <button id="session-expired-ok" style="padding: 10px 20px; font-size: 1rem; cursor: pointer;">Tamam</button>
-                </div>
-            `;
-            document.body.appendChild(alertOverlay);
-
-            document.getElementById('session-expired-ok').onclick = () => {
-                document.body.removeChild(alertOverlay);
-                // Admin modunu kapat ve çıkış yap
-                localStorage.removeItem('authToken');
-                authToken = null;
-                showLogoutOverlay();
-                setTimeout(() => window.location.reload(), 2200);
-            };
-        }
-    } catch (error) {
-        console.error('Oturum kontrolü sırasında hata:', error);
-        if (sessionCheckInterval) clearInterval(sessionCheckInterval);
-    }
-}
-
 function formatTimestamp(timestamp) {
     if (!timestamp) return '';
     // Firebase Timestamps can be objects with seconds, or ISO strings.
@@ -384,10 +319,6 @@ if (advancedEditBtnMobile) {
 
     if (authToken) {
         setAdminMode(true);
-        // YENİ: Oturum kontrolünü başlat
-        checkSession(); // Sayfa yüklenince ilk kontrol
-        if (sessionCheckInterval) clearInterval(sessionCheckInterval); // Önceki interval'ı temizle
-        sessionCheckInterval = setInterval(checkSession, 30000); // Her 30 saniyede bir kontrol
     } else {
         setAdminMode(false);
     }
@@ -1825,6 +1756,73 @@ if (advancedEditBtnMobile) {
                 if (adminModal) adminModal.style.display = 'block';
                 window.isClosingEditModal = false;
                 closeBtns.forEach(function(b){ b.removeEventListener('click', closeHandler); });
+// Kaydedilmemiş değişiklikler için özel uyarı paneli fonksiyonu
+function showUnsavedChangesPanel(onConfirm, onCancel) {
+    // Panel açılırken marker düzenleme modalının close butonlarını devre dışı bırak
+    var editModal = document.getElementById('edit-modal');
+    var closeBtns = editModal ? editModal.querySelectorAll('.close') : [];
+             // Tüm close eventlerini geçici olarak kaldır
+    closeBtns.forEach(function(b){
+        b.__old_onclick = b.onclick;
+        b.onclick = function(e) { e.stopPropagation(); e.preventDefault(); };
+    });
+    let panel = document.getElementById('unsaved-changes-panel');
+    if (!panel) {
+        panel = document.createElement('div');
+        panel.id = 'unsaved-changes-panel';
+        panel.innerHTML = `
+            <div class="unsaved-changes-modal">
+                <div class="unsaved-changes-content">
+                    <p>Kaydedilmemiş değişiklikler var. Çıkmak istediğinize emin misiniz?</p>
+                    <button id="unsaved-yes">Evet</button>
+                    <button id="unsaved-no">Hayır</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(panel);
+    } else {
+        panel.style.display = 'flex';
+    }
+    // Panel açıldığında body'ye class ekle
+    document.body.classList.add('unsaved-panel-open');
+    document.getElementById('unsaved-yes').onclick = function(e) {
+       
+        e.stopPropagation();
+        panel.style.display = 'none';
+        document.body.classList.remove('unsaved-panel-open');
+        // Panel kapanınca close butonlarını tekrar aktif et
+        closeBtns.forEach(function(b){
+            if (b.__old_onclick) b.onclick = b.__old_onclick;
+            delete b.__old_onclick;
+        });
+        // --- EKLENDİ: Kaydetmeden çıkınca tempImages temizlensin ---
+        tempImages = [];
+        updateImageList();
+        if (onConfirm) onConfirm();
+    };
+    document.getElementById('unsaved-no').onclick = function(e) {
+        e.stopPropagation();
+        panel.style.display = 'none';
+        document.body.classList.remove('unsaved-panel-open');
+        // Panel kapanınca close butonlarını tekrar aktif et
+        closeBtns.forEach(function(b){
+            if (b.__old_onclick) b.onclick = b.__old_onclick;
+            delete b.__old_onclick;
+        });
+        // Marker düzenleme modalı tekrar görünür olsun
+        var editModal = document.getElementById('edit-modal');
+        if (editModal) editModal.style.display = 'block';
+        if (onCancel) onCancel();
+    };
+   
+
+    panel.onclick = function(e) {
+        // Sadece overlay'e tıklanırsa hiçbir şey yapma, paneli kapatma
+        if (e.target === panel) {
+            e.stopPropagation();
+        }
+    };
+}
             }
             btn.addEventListener('click', closeHandler);
         });
