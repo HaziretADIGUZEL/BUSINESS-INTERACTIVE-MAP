@@ -15,6 +15,19 @@
         <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Afacad&display=swap">
         <!-- jsQR barkod/QR kütüphanesi -->
         <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+        <style>
+            html, body, #map {
+                height: 100%;
+                width: 100%;
+                margin: 0;
+                padding: 0;
+            }
+            #map {
+                position: absolute;
+                top: 0; left: 0; right: 0; bottom: 0;
+                z-index: 1;
+            }
+        </style>
     </head>     
     <body> 
         <div id="map"></div>         

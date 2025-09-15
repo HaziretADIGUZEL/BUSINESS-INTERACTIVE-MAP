@@ -244,6 +244,8 @@ function initApp() {
             crs: L.CRS.Simple,
             minZoom: minZoom,
             maxZoom: 3,
+            zoomSnap: 0.1,    // Küçük kademeli zoom
+            zoomDelta: 0.1,   // Küçük adımlarla zoom
             maxBoundsViscosity: 1.0
         });
     // ...existing code...
@@ -1572,6 +1574,8 @@ if (advancedEditBtnMobile) {
             }
         }
     };
+
+   
 
     // Yeni Marker Ekle Butonu
     var addNewBtn = document.getElementById('add-new-marker');
