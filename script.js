@@ -1,5 +1,9 @@
 // Firebase yapılandırması kaldırıldı, çünkü backend üzerinden iletişim kuruyoruz
 
+// --- YENİ: Kullanıcı modunda barkod okutma için global değişkenler ---
+let userBarcodeStream = null;
+let hideAllFiltersAutoDisabled = false;
+
 async function hashPassword(password) {
     const encoder = new TextEncoder();
     const data = encoder.encode(password);
@@ -2606,62 +2610,174 @@ function showUnsavedChangesPanel(onConfirm, onCancel) {
             }
         }
     });
+
+    // --- YENİ: Kullanıcı modunda barkod okutma butonunu göster ---
+    setTimeout(function() {
+        if (typeof adminMode !== 'undefined' && !adminMode) {
+            var userBarcodeBtn = document.getElementById('user-barcode-btn');
+            if (userBarcodeBtn) {
+                userBarcodeBtn.style.display = 'flex';
+                userBarcodeBtn.onclick = function() {
+                    openUserBarcodeModal();
+                };
+            }
+            var userBarcodeModalClose = document.getElementById('user-barcode-modal-close');
+            if (userBarcodeModalClose) {
+                userBarcodeModalClose.onclick = closeUserBarcodeModal;
+            }
+        }
+    }, 300);
+
+    // Admin kullanıcı adını gösteren paneli başlat
+    function showAdminUsernamePanel() {
+        let username = localStorage.getItem('adminUsername');
+        let token = localStorage.getItem('authToken');
+        let panel = document.getElementById('admin-username-panel');
+        if (!username || !token) {
+            if (panel) panel.style.display = 'none';
+            return;
+        }
+        if (!panel) {
+            panel = document.createElement('div');
+            panel.id = 'admin-username-panel';
+            panel.style.position = 'fixed';
+            panel.style.left = '12px';
+            panel.style.bottom = '12px';
+            panel.style.background = 'rgba(30,30,30,0.82)';
+            panel.style.color = '#fff';
+            panel.style.fontSize = '13px';
+            panel.style.padding = '4px 14px 4px 8px';
+            panel.style.borderRadius = '16px';
+            panel.style.zIndex = '99999';
+            panel.style.pointerEvents = 'none';
+            panel.style.userSelect = 'none';
+            panel.style.fontWeight = '500';
+            panel.style.boxShadow = '0 2px 8px rgba(0,0,0,0.18)';
+            panel.style.display = 'flex';
+            panel.style.alignItems = 'center';
+            // Görsel (avatar) ekle
+            const img = document.createElement('img');
+            img.src = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(username) + '&background=007bff&color=fff&size=32&rounded=true';
+            img.alt = 'Admin';
+            img.style.width = '22px';
+            img.style.height = '22px';
+            img.style.borderRadius = '50%';
+            img.style.marginRight = '7px';
+            img.style.background = '#fff';
+            img.style.flexShrink = '0';
+            panel.appendChild(img);
+            const span = document.createElement('span');
+            span.id = 'admin-username-panel-text';
+            panel.appendChild(span);
+            document.body.appendChild(panel);
+        }
+        // Sadece text kısmını güncelle
+        const span = panel.querySelector('#admin-username-panel-text');
+        if (span) {
+            span.textContent = username;
+        }
+        panel.style.display = 'flex';
+    }
+    showAdminUsernamePanel();
 }
 
-// --- KULLANICI ADI PANELİ EKLE (her zaman, her yerde görünecek, sol altta küçük) ---
-function showAdminUsernamePanel() {
-    let username = localStorage.getItem('adminUsername');
-    let token = localStorage.getItem('authToken');
-    let panel = document.getElementById('admin-username-panel');
-    if (!username || !token) {
-        if (panel) panel.style.display = 'none';
+// --- YENİ: Kullanıcı modunda barkod okutma modalı ve fonksiyonları ---
+function openUserBarcodeModal() {
+    var modal = document.getElementById('user-barcode-modal');
+    var video = document.getElementById('user-barcode-video');
+    var status = document.getElementById('user-barcode-status');
+    if (!modal || !video) return;
+    // Hepsini gizle otomatik kaldır
+    var hideAllFilters = document.getElementById('hide-all-filters');
+    if (hideAllFilters && hideAllFilters.checked) {
+        hideAllFilters.checked = false;
+        if (typeof updateFilters === 'function') updateFilters();
+        hideAllFiltersAutoDisabled = true;
+    } else {
+        hideAllFiltersAutoDisabled = false;
+    }
+    modal.style.display = 'block';
+    status.textContent = 'Kamera başlatılıyor...';
+    // Kamera aç
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+        .then(function(stream) {
+            userBarcodeStream = stream;
+            video.srcObject = stream;
+            video.play();
+            status.textContent = 'Barkodu çerçeveye hizalayın';
+            scanUserBarcodeLoop();
+        })
+        .catch(function(err) {
+            status.textContent = 'Kamera erişimi reddedildi veya desteklenmiyor.';
+        });
+}
+
+function closeUserBarcodeModal() {
+    var modal = document.getElementById('user-barcode-modal');
+    var video = document.getElementById('user-barcode-video');
+    if (userBarcodeStream) {
+        userBarcodeStream.getTracks().forEach(function(track) { track.stop(); });
+        userBarcodeStream = null;
+    }
+    if (video) video.srcObject = null;
+    if (modal) modal.style.display = 'none';
+}
+
+// --- jsQR ile barkod okuma döngüsü ---
+function scanUserBarcodeLoop() {
+    var video = document.getElementById('user-barcode-video');
+    var status = document.getElementById('user-barcode-status');
+    if (!video || video.readyState !== 4) {
+        setTimeout(scanUserBarcodeLoop, 200);
         return;
     }
-    if (!panel) {
-        panel = document.createElement('div');
-        panel.id = 'admin-username-panel';
-        panel.style.position = 'fixed';
-        panel.style.left = '12px';
-        panel.style.bottom = '12px';
-        panel.style.background = 'rgba(30,30,30,0.82)';
-        panel.style.color = '#fff';
-        panel.style.fontSize = '13px';
-        panel.style.padding = '4px 14px 4px 8px';
-        panel.style.borderRadius = '16px';
-        panel.style.zIndex = '99999';
-        panel.style.pointerEvents = 'none';
-        panel.style.userSelect = 'none';
-        panel.style.fontWeight = '500';
-        panel.style.boxShadow = '0 2px 8px rgba(0,0,0,0.18)';
-        panel.style.display = 'flex';
-        panel.style.alignItems = 'center';
-        // Görsel (avatar) ekle
-        const img = document.createElement('img');
-        img.src = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(username) + '&background=007bff&color=fff&size=32&rounded=true';
-        img.alt = 'Admin';
-        img.style.width = '22px';
-        img.style.height = '22px';
-        img.style.borderRadius = '50%';
-        img.style.marginRight = '7px';
-        img.style.background = '#fff';
-        img.style.flexShrink = '0';
-        panel.appendChild(img);
-        const span = document.createElement('span');
-        span.id = 'admin-username-panel-text';
-        panel.appendChild(span);
-        document.body.appendChild(panel);
+    var canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    var ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    var imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    var code = window.jsQR(imageData.data, canvas.width, canvas.height);
+    if (code) {
+        status.textContent = 'Barkod bulundu: ' + code.data;
+        handleUserBarcodeResult(code.data);
+        closeUserBarcodeModal();
+        return;
     }
-    // Sadece text kısmını güncelle
-    const span = panel.querySelector('#admin-username-panel-text');
-    if (span) {
-        span.textContent = username;
+    setTimeout(scanUserBarcodeLoop, 300);
+}
+
+function handleUserBarcodeResult(barcode) {
+    // Sadece kullanıcı modunda: marker eşleşirse haritayı ortala ve zoomla, yoksa uyarı ver
+    var foundIndex = markersData.findIndex(function(m) { return m.barcode === barcode; });
+    // Önce tüm markerların glow'unu kaldır
+    markerLayers.forEach(layer => {
+        var iconDiv = layer.marker.getElement();
+        if (iconDiv) iconDiv.classList.remove('marker-glow-red');
+    });
+    if (foundIndex !== -1) {
+        var markerObj = markerLayers[foundIndex];
+        var marker = markerObj && markerObj.marker ? markerObj.marker : null;
+        if (marker && marker.getLatLng) {
+            map.setView(marker.getLatLng(), 1, { animate: true });
+            marker.openPopup();
+            var iconDiv = marker.getElement();
+            if (iconDiv) iconDiv.classList.add('marker-glow-red');
+        }
+    } else {
+        // Sonuç yoksa ve hepsini gizle otomatik kaldırıldıysa tekrar aktif et
+        var hideAllFilters = document.getElementById('hide-all-filters');
+        if (hideAllFilters && hideAllFiltersAutoDisabled) {
+            hideAllFilters.checked = true;
+            if (typeof updateFilters === 'function') updateFilters();
+        }
+        alert('Barkoda ait marker bulunamadı.');
     }
-    panel.style.display = 'flex';
 }
 
 window.addEventListener('DOMContentLoaded', function() {
     initApp();
-    showAdminUsernamePanel();
+    // showAdminUsernamePanel(); // <-- Bu satır kaldırıldı, çünkü artık initApp() içinde çağrılıyor
 });
 
 // Hamburger menü ve mobil panel işlevleri
