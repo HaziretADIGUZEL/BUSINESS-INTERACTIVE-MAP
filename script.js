@@ -227,7 +227,6 @@ function initApp() {
         alert('Hata: Leaflet kütüphanesi yüklenemedi.');
         return;
     }
-    // ...existing code...
 
     // Harita div kontrolü
     var mapDiv = document.getElementById('map');
@@ -236,7 +235,6 @@ function initApp() {
         alert('Hata: #map div bulunamadı.');
         return;
     }
-    // ...existing code...
 
     // Harita oluşturma
     var map;
@@ -252,7 +250,6 @@ function initApp() {
             zoomDelta: 0.1,   // Küçük adımlarla zoom
             maxBoundsViscosity: 1.0
         });
-    // ...existing code...
     } catch (err) {
         console.error('L.map hatası:', err);
         alert('Hata: Leaflet harita oluşturulamadı.');
@@ -270,11 +267,9 @@ function initApp() {
         [imgHeight * (1 + padding), imgWidth * (1 + padding)]
     ];
     var imageBounds = [[0, 0], [imgHeight, imgWidth]];
-    // ...existing code...
     try {
         var imageOverlay = L.imageOverlay(imageUrl, imageBounds).addTo(map);
         imageOverlay.on('load', function() {
-            // ...existing code...
         });
         imageOverlay.on('error', function(err) {
             console.error('PNG yüklenemedi:', imageUrl, err);
@@ -291,7 +286,6 @@ function initApp() {
         var initialZoom = isMobile ? -5 : -3; // Mobilde daha yakın başlat
         map.setView([imgHeight / 2, imgWidth / 2], initialZoom);
         map.setMaxBounds(paddedBounds); // Genişletilmiş sınırları kullan
-    // ...existing code...
     } catch (err) {
         console.error('map.setView hatası:', err);
     }
@@ -1572,6 +1566,8 @@ if (advancedEditBtnMobile) {
                 document.body.appendChild(overlay);
                 setTimeout(function() {
 
+
+
                     window.location.reload();
                 }, 2200);
             } catch (error) {
@@ -1615,26 +1611,27 @@ if (advancedEditBtnMobile) {
 
     // Görsel Yükleme ve Düzenleme
     var tempImages = [];
-    function updateImageList() {
-        var imageList = document.getElementById('image-list');
-        if (!imageList) return;
-        imageList.innerHTML = '';
-        tempImages.forEach((img, i) => {
-            var div = document.createElement('div');
-            div.className = 'image-item';
-            div.innerHTML = `
-                <img src="${img}" alt="Image ${i}">
-                <button onclick="deleteImage(${i})">Sil</button>
-            `;
-            imageList.appendChild(div);
-        });
-    }
+function updateImageList() {
+    var imageList = document.getElementById('image-list');
+    if (!imageList) return;
+    imageList.innerHTML = '';
+    tempImages.forEach((img, i) => {
+        var div = document.createElement('div');
+        div.className = 'image-item';
+        div.innerHTML = `
+            <img src="${img}" alt="Image ${i}" onclick="openTempImageViewer(${i})" style="cursor: pointer;">
+            <button type="button" onclick="deleteImage(${i})">Sil</button>
+        `;
+        imageList.appendChild(div);
+    });
+}
 
     window.deleteImage = function(index) {
+    if (confirm('Bu görseli silmek istediğinizden emin misiniz?')) {
         tempImages.splice(index, 1);
         updateImageList();
-    };
-
+    }
+};
     const addImageUrlBtn = document.getElementById('add-image-url');
     if (addImageUrlBtn) {
         addImageUrlBtn.addEventListener('click', function() {
@@ -2242,7 +2239,7 @@ function showUnsavedChangesPanel(onConfirm, onCancel) {
         if (deleteBtn) {
             deleteBtn.style.display = selectedMarkerIndex === -1 ? 'none' : 'block';
             deleteBtn.onclick = async function() {
-                if (selectedMarkerIndex !== -1) {
+                if (selectedMarkerIndex !== -1 && confirm('Bu markerı silmek istediğinizden emin misiniz?')) {
                     try {
                         await deleteMarkerFromDB(markersData[selectedMarkerIndex].id);
                         loadMarkers();
@@ -2265,40 +2262,42 @@ function showUnsavedChangesPanel(onConfirm, onCancel) {
 
     // Büyük Görsel Görüntüleyici
     var imageViewerModal = document.getElementById('image-viewer-modal');
-    var imageViewerMap = null;
-    var currentImages = [];
-    var currentImageIndex = 0;
+var imageViewerMap = null;
+var currentImages = [];
+var currentImageIndex = 0;
 
-    window.openImageViewer = function(markerIndex, imageIndex) {
-        currentImages = markersData[markerIndex].images || [];
-        currentImageIndex = imageIndex;
-        if (currentImages.length === 0) {
-            if (editModal) editModal.querySelector('#image-error').textContent = 'Görsel bulunamadı.';
-            return;
-        }
+// --- YENİ: Düzenleme panelindeki geçici görseller için görüntüleyici ---
+window.openTempImageViewer = function(imageIndex) {
+    currentImages = tempImages;
+    currentImageIndex = imageIndex;
+    if (currentImages.length === 0) {
+        if (editModal) editModal.querySelector('#image-error').textContent = 'Görsel bulunamadı.';
+        return;
+    }
 
-    // ...existing code...
+    if (imageViewerMap) {
+        imageViewerMap.remove();
+    }
+    var viewerDiv = document.getElementById('image-viewer-map');
+    if (!viewerDiv) return;
+    viewerDiv.innerHTML = '';
+    imageViewerMap = L.map('image-viewer-map', {
+        crs: L.CRS.Simple,
+        minZoom: -2,
+        maxZoom: 2,
+        zoomControl: true
+    });
 
-        if (imageViewerMap) {
-            imageViewerMap.remove();
-        }
-        var viewerDiv = document.getElementById('image-viewer-map');
-        if (!viewerDiv) return;
-        viewerDiv.innerHTML = '';
-        imageViewerMap = L.map('image-viewer-map', {
-            crs: L.CRS.Simple,
-            minZoom: -2,
-            maxZoom: 2,
-            zoomControl: true
-        });
+    if (imageViewerModal) {
+        imageViewerModal.style.display = 'block';
+        imageViewerModal.style.zIndex = '10000';  // Düzenleme modalından önde olsun
+    }
 
-        if (imageViewerModal) imageViewerModal.style.display = 'block';
-
-        setTimeout(function() {
-            if (imageViewerMap) imageViewerMap.invalidateSize();
-            updateImageViewer();
-        }, 100);
-    };
+    setTimeout(function() {
+        if (imageViewerMap) imageViewerMap.invalidateSize();
+        updateImageViewer();
+    }, 100);
+};
 
     function updateImageViewer() {
         if (!imageViewerMap) return;
@@ -2312,7 +2311,6 @@ function showUnsavedChangesPanel(onConfirm, onCancel) {
         img.src = currentImages[currentImageIndex];
         
         img.onload = function() {
-            // ...existing code...
             var bounds = [[0, 0], [img.height, img.width]];
             L.imageOverlay(img.src, bounds).addTo(imageViewerMap);
             imageViewerMap.fitBounds(bounds);
