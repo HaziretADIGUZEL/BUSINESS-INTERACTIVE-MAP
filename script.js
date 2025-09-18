@@ -133,7 +133,7 @@ function showSessionWarningPanel() {
     panel.style.justifyContent = 'center';
     panel.innerHTML = `
         <div style="background:#fff;padding:32px 48px;border-radius:18px;font-size:1.5rem;font-weight:600;color:#e67e22;box-shadow:0 2px 16px rgba(0,0,0,0.18);text-align:center;">
-            Son mevcut oturum sürenizin dolmasına <b>5 dakika dan az zaman kaldı.</b> kaldı.<br>
+            Son mevcut oturum sürenizin dolmasına <b>5 dakikadan az zaman kaldı.</b><br>
             <button id="session-warning-ok" style="margin-top:18px;padding:8px 32px;font-size:1.1rem;border-radius:8px;background:#007bff;color:#fff;border:none;cursor:pointer;">Tamam</button>
         </div>
     `;
@@ -257,7 +257,7 @@ function initApp() {
     }
 
     // SVG yükleme
-    var imageUrl = 'plan.png';
+    var imageUrl = 'plan.webp';
     var imgHeight = 7599;
     var imgWidth = 8020;
     // Sınırları %20 genişlet
@@ -272,12 +272,12 @@ function initApp() {
         imageOverlay.on('load', function() {
         });
         imageOverlay.on('error', function(err) {
-            console.error('PNG yüklenemedi:', imageUrl, err);
-            alert('PNG yüklenemedi: ' + err.type + '. Dosya yolunu veya PNG yapısını kontrol edin.');
+            console.error('Görsel yüklenemedi:', imageUrl, err);
+            alert('Görsel yüklenemedi: ' + err.type + '. Dosya yolunu veya görsel yapısını kontrol edin.');
         });
     } catch (err) {
         console.error('L.imageOverlay hatası:', err);
-        alert('Hata: Leaflet PNG yüklemesinde sorun.');
+        alert('Hata: Leaflet görsel yüklemesinde sorun.');
     }
 
     // Haritayı ortala
@@ -1574,8 +1574,7 @@ if (advancedEditBtnMobile) {
                 alert('Sınıf silinemedi.');
             }
         }
-    };
-
+ }
    
 
     // Yeni Marker Ekle Butonu
@@ -2490,6 +2489,7 @@ window.openTempImageViewer = function(imageIndex) {
         const status = document.getElementById('barcode-status');
         if (!modal || !video) return;
         modal.style.display = 'block';
+        modal.style.zIndex = '10001'; // Marker düzenleme panelinin (edit-modal) üzerine çıkması için z-index artırıldı
         status.textContent = 'Kamera başlatılıyor...';
         // Kamera aç
         navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
