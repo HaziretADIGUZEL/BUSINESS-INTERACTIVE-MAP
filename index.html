@@ -37,7 +37,7 @@
             <ul id="search-suggestions" class="suggestions-list" style="display: none;"></ul>             
         </div>         
         <div class="filter-container"> 
-            <button id="filter-toggle" style="box-shadow: inset 0 0 10px -5px;">Sınıflar Filtrele</button>             
+            <button id="filter-toggle" style="box-shadow: inset 0 0 20px rgba(0,0,0,0.25), 0 0 20px rgba(0,0,0,0.3);;">Sınıflar Filtrele</button>             
             <div id="filter-dropdown" class="filter-dropdown" style="display: none; margin-top: 50px;"> 
                 <label>
                     <input type="checkbox" id="hide-all-filters"> Hepsini Gizle
@@ -46,27 +46,29 @@
             </div>             
             <div class="inversion-container"> 
                 <input type="checkbox" id="inversion-toggle" style="margin-top: 1px; margin-left: 4px; background-color: #778d06; border-right-width: 0px; margin-right: -7px;">
-                <label for="inversion-toggle" style="margin-top: 3px; margin-left: 9px; background-color: #007bff; font-family: 'Afacad', sans-serif; font-weight: 400; letter-spacing: 0; text-indent: 6px; color: #ffffff; font-size: 20px; line-height: 28px; width: 143px; height: 28px; text-align: center; border-radius: 20px; border-width: 1px; box-shadow: inset 0 0 10px -6px;">Tersine Çevir</label>                 
+                <label for="inversion-toggle" style="margin-top: 3px; margin-left: 9px; background-color: #007bff; font-family: 'Afacad', sans-serif; font-weight: 400; letter-spacing: 0; text-indent: 6px; color: #ffffff; font-size: 20px; line-height: 28px; width: 143px; height: 28px; text-align: center; border-radius: 20px; border-width: 1px; box-shadow: inset 0 0 20px rgba(0,0,0,0.25), 0 0 20px rgba(0,0,0,0.3);">Tersine Çevir</label>                 
             </div>             
         </div>         
         <!-- Hamburger menü butonu sadece mobilde görünür -->
-        <button id="hamburger-menu" class="hamburger-menu" style="display: none; margin-top: 45px;"><span style="font-size:28px;">&#9776;</span>
+        <button id="hamburger-menu" class="hamburger-menu" style="display: none; margin-top: 45px;box-shadow: inset 0 0 20px rgba(0,0,0,0.25), 0 0 20px rgba(0,0,0,0.3);"><span style="font-size:28px;">&#9776;</span>
         </button>
         <!-- Mobil panel: admin ile ilgili butonlar burada -->
         <div id="mobile-panel" class="mobile-panel" style="display:none;">
+            <!-- YENİ: Kapatma butonu eklendi -->
+            <button id="mobile-panel-close-btn" class="mobile-panel-close-btn">&times;</button>
             <button id="admin-toggle-mobile">Admin Modu</button>
-            <button id="close-admin-mobile" style="display:none;">Admin Modunu Kapat</button>
-            <button id="show-admin-panel-mobile" style="display:none;">Marker Listesi</button>
-            <button id="manage-classes-btn-mobile" style="display:none;">Sınıf Yönetimi</button>
-            <button id="advanced-edit-btn-mobile" style="display:none;background:#218838;color:#ffffff;font-weight:600;">Gelişmiş Düzenleme</button>
-            <button id="scan-barcode-btn-mobile" style="display:none;">Barkod Okut</button>
+            <button id="close-admin-mobile" style="display:none;box-shadow: inset 0 0 20px rgba(0,0,0,0.25), 0 0 20px rgba(0,0,0,0.3);">Admin Modunu Kapat</button>
+            <button id="show-admin-panel-mobile" style="display:none;box-shadow: inset 0 0 20px rgba(0,0,0,0.25), 0 0 20px rgba(0,0,0,0.3);">Marker Listesi</button>
+            <button id="manage-classes-btn-mobile" style="display:none;box-shadow: inset 0 0 20px rgba(0,0,0,0.25), 0 0 20px rgba(0,0,0,0.3);">Sınıf Yönetimi</button>
+            <button id="advanced-edit-btn-mobile" style="display:none;background:#218838;color:#ffffff;font-weight:400;box-shadow: inset 0 0 20px rgba(0,0,0,0.25), 0 0 20px rgba(0,0,0,0.3);">Gelişmiş Düzenleme</button>
+            <button id="scan-barcode-btn-mobile" style="display:none;box-shadow: inset 0 0 20px rgba(0,0,0,0.25), 0 0 20px rgba(0,0,0,0.3);">Barkod Okut</button>
         </div>
         <!-- Masaüstü admin butonları -->
         <div class="admin-buttons">
             <button id="admin-toggle">Admin Modu</button>
             <button id="show-admin-panel" style="display: none;">Marker Listesi</button>
-            <button id="manage-classes-btn" style="display: none;">Sınıf Yönetimi</button>
-            <button id="advanced-edit-btn" style="display:none;background:#218838;color:#ffffff;font-weight:600;margin-left:10px;">Gelişmiş Düzenleme</button>
+            <button id="manage-classes-btn" style="display: none;margin-bottom: 0;">Sınıf Yönetimi</button>
+            <button id="advanced-edit-btn" style="display:none;background:#218838;color:#ffffff;font-weight:400;margin-left:10px;margin-top: 0;">Gelişmiş Düzenleme</button>
         </div>
         <!-- Gelişmiş Düzenleme Modalı (sadece bir tane bırakıldı) -->
         <div id="advanced-edit-modal" class="modal" style="display:none;z-index:99999;background:rgba(0,0,0,0.92);">
@@ -172,7 +174,7 @@
         </div>         
         <script src="script.js"></script>         
         <!-- Kullanıcı modunda barkod okutma butonu ve modalı (admin modundan bağımsız) -->
-        <button id="user-barcode-btn" style="position:fixed;bottom:24px;right:24px;z-index:1000;padding:14px 22px 14px 18px;background:#fff;border-radius:32px;border:2px solid #007bff;box-shadow:0 2px 12px #0002;font-size:1.1em;display:none;align-items:center;gap:8px;cursor:pointer;">
+        <button id="user-barcode-btn" style="position:fixed;bottom:24px;right:24px;z-index:1000;padding:14px 22px 14px 18px;background:#fff;border-radius:32px;border:2px solid #007bff;box-shadow:0 2px 12px #0002;font-size:1em;display:none;align-items:center;gap:8px;cursor:pointer;">
             <span style="font-size:1.5em;">&#128439;</span> Barkod Tara
         </button>
         <div id="user-barcode-modal" class="modal" style="display:none;">

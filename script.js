@@ -66,7 +66,7 @@ async function showLastAdminLogin() {
                     panel = document.createElement('div');
                     panel.id = 'last-admin-login';
                     panel.style.fontSize = '13px';
-                    panel.style.color = '#007bff';
+                    panel.style.color = '#1559a1ff';
                     panel.style.margin = '4px 0 10px 0';
                     if (h2 && h2.parentNode) {
                         h2.parentNode.insertBefore(panel, h2.nextSibling);
@@ -213,6 +213,14 @@ function initApp() {
         savingOverlay.style.justifyContent = 'center';
         savingOverlay.innerHTML = '<div style="background:#fff;padding:20px 30px;border-radius:10px;font-size:1.5rem;font-weight:600;color:#007bff;box-shadow:0 2px 10px rgba(0,0,0,0.15);">Kaydediliyor...</div>';
         document.body.appendChild(savingOverlay); // Doğrudan body'ye ekle
+    }
+
+        var mobilePanelCloseBtn = document.getElementById('mobile-panel-close-btn');
+    if (mobilePanelCloseBtn) {
+    mobilePanelCloseBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        hideMobilePanel();
+        });
     }
 
 
@@ -1306,7 +1314,7 @@ if (advancedEditBtnMobile) {
             sortControls.style.gap = '10px';
             sortControls.style.marginBottom = '15px';
             sortControls.innerHTML = `
-                <label for="sort-criteria" style="font-weight: 600;">Sırala:</label>
+                <label for="sort-criteria" style="font-weight: 400;">Sırala:</label>
                 <select id="sort-criteria" style="padding: 4px; border-radius: 5px;">
                     <option value="updatedAt">Son Değişiklik</option>
                     <option value="createdAt">Oluşturma Tarihi</option>
@@ -2261,16 +2269,16 @@ function showUnsavedChangesPanel(onConfirm, onCancel) {
 
     // Büyük Görsel Görüntüleyici
     var imageViewerModal = document.getElementById('image-viewer-modal');
-var imageViewerMap = null;
-var currentImages = [];
-var currentImageIndex = 0;
+    var imageViewerMap = null;
+    var currentImages = [];
+    var currentImageIndex = 0;
 
-// --- YENİ: Düzenleme panelindeki geçici görseller için görüntüleyici ---
-window.openTempImageViewer = function(imageIndex) {
-    currentImages = tempImages;
+    // --- YENİ: Düzenleme panelindeki geçici görseller için görüntüleyici ---
+    window.openTempImageViewer = function(imageIndex) {
+    currentImages = tempImages;  // Geçici görselleri kullan
     currentImageIndex = imageIndex;
     if (currentImages.length === 0) {
-        if (editModal) editModal.querySelector('#image-error').textContent = 'Görsel bulunamadı.';
+        console.log('No temp images found');
         return;
     }
 
@@ -2278,7 +2286,10 @@ window.openTempImageViewer = function(imageIndex) {
         imageViewerMap.remove();
     }
     var viewerDiv = document.getElementById('image-viewer-map');
-    if (!viewerDiv) return;
+    if (!viewerDiv) {
+        console.log('viewerDiv not found');
+        return;
+    }
     viewerDiv.innerHTML = '';
     imageViewerMap = L.map('image-viewer-map', {
         crs: L.CRS.Simple,
@@ -2289,7 +2300,8 @@ window.openTempImageViewer = function(imageIndex) {
 
     if (imageViewerModal) {
         imageViewerModal.style.display = 'block';
-        imageViewerModal.style.zIndex = '10000';  // Düzenleme modalından önde olsun
+        imageViewerModal.style.zIndex = '100000';  // Düzenleme modal'ından üstte olsun
+        console.log('Temp image viewer modal opened');
     }
 
     setTimeout(function() {
@@ -2298,7 +2310,46 @@ window.openTempImageViewer = function(imageIndex) {
     }, 100);
 };
 
+    window.openImageViewer = function(index, imageIndex) {
+        console.log('openImageViewer called with', index, imageIndex);  // Debug log
+        currentImages = markersData[index].images;
+        currentImageIndex = imageIndex;
+        if (currentImages.length === 0) {
+            console.log('No images found');  // Debug log
+            if (editModal) editModal.querySelector('#image-error').textContent = 'Görsel bulunamadı.';
+            return;
+        }
+
+        if (imageViewerMap) {
+            imageViewerMap.remove();
+        }
+        var viewerDiv = document.getElementById('image-viewer-map');
+        if (!viewerDiv) {
+            console.log('viewerDiv not found');  // Debug log
+            return;
+        }
+        viewerDiv.innerHTML = '';
+        imageViewerMap = L.map('image-viewer-map', {
+            crs: L.CRS.Simple,
+            minZoom: -2,
+            maxZoom: 2,
+            zoomControl: true
+        });
+
+        if (imageViewerModal) {
+            imageViewerModal.style.display = 'block';
+            imageViewerModal.style.zIndex = '10000';
+            console.log('Modal opened');  // Debug log
+        }
+
+        setTimeout(function() {
+            if (imageViewerMap) imageViewerMap.invalidateSize();
+            updateImageViewer();
+        }, 100);
+    };
+
     function updateImageViewer() {
+        console.log('updateImageViewer called');  // Debug log
         if (!imageViewerMap) return;
         imageViewerMap.eachLayer(layer => {
             if (layer instanceof L.ImageOverlay) {
@@ -2308,8 +2359,10 @@ window.openTempImageViewer = function(imageIndex) {
 
         var img = new Image();
         img.src = currentImages[currentImageIndex];
+        console.log('Loading image:', img.src);  // Debug log
         
         img.onload = function() {
+            console.log('Image loaded successfully:', img.src);  // Debug log
             var bounds = [[0, 0], [img.height, img.width]];
             L.imageOverlay(img.src, bounds).addTo(imageViewerMap);
             imageViewerMap.fitBounds(bounds);
@@ -2318,7 +2371,7 @@ window.openTempImageViewer = function(imageIndex) {
         };
         
         img.onerror = function() {
-            console.error('Görsel yüklenemedi:', img.src);
+            console.error('Image load error:', img.src);  // Debug log
             if (editModal) editModal.querySelector('#image-error').textContent = 'Büyük görsel yüklenemedi: URL geçersiz veya erişilemiyor.';
         };
     }
@@ -2489,7 +2542,6 @@ window.openTempImageViewer = function(imageIndex) {
         const status = document.getElementById('barcode-status');
         if (!modal || !video) return;
         modal.style.display = 'block';
-        modal.style.zIndex = '10001'; // Marker düzenleme panelinin (edit-modal) üzerine çıkması için z-index artırıldı
         status.textContent = 'Kamera başlatılıyor...';
         // Kamera aç
         navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
@@ -2739,9 +2791,9 @@ window.openTempImageViewer = function(imageIndex) {
             panel.style.background = 'rgba(30,30,30,0.82)';
             panel.style.color = '#fff';
             panel.style.fontSize = '13px';
-            panel.style.padding = '4px 14px 4px 8px';
+            panel.style.padding = '6px 22px 6px 14px';
             panel.style.borderRadius = '16px';
-            panel.style.zIndex = '99999';
+            panel.style.zIndex = '15000';
             panel.style.pointerEvents = 'none';
             panel.style.userSelect = 'none';
             panel.style.fontWeight = '500';
@@ -2750,13 +2802,13 @@ window.openTempImageViewer = function(imageIndex) {
             panel.style.alignItems = 'center';
             // Görsel (avatar) ekle
             const img = document.createElement('img');
-            img.src = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(username) + '&background=007bff&color=fff&size=32&rounded=true';
+            img.src = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(username) + '&background=6db9afff&color=fff&size=32&rounded=true';
             img.alt = 'Admin';
-            img.style.width = '22px';
-            img.style.height = '22px';
+            img.style.width = '27px';
+            img.style.height = '27px';
             img.style.borderRadius = '50%';
             img.style.marginRight = '7px';
-            img.style.background = '#fff';
+            img.style.background = '#6db9afff';
             img.style.flexShrink = '0';
             panel.appendChild(img);
             const span = document.createElement('span');
