@@ -196,6 +196,58 @@ function showSessionEndedPanel() {
 }
 
 function initApp() {
+    // Sayfa yüklenince loading ekranını gizle
+    window.addEventListener('load', function() {
+        const loadingScreen = document.getElementById('loading-screen');
+        const progressBar = document.getElementById('loading-progress-bar');
+        
+        // Rastgele süre: 4-7 saniye arası (4000-7000 ms)
+        const randomDuration = Math.random() * 3000 + 4000; // 4000 + (0-3000)
+        
+        // Dolma süresi: rastgele sürenin %80'i (%20 daha hızlı)
+        const fillDuration = randomDuration * 0.8;
+        
+        // Gerçekçi animasyon fonksiyonu: Duraklamalar ve hız değişimleri ile ilerleme
+        function animateProgress() {
+            let progress = 0;
+            const startTime = Date.now();
+            
+            function step() {
+                const elapsed = Date.now() - startTime;
+                const targetProgress = (elapsed / fillDuration) * 100;
+                
+                // Gerçekçilik için: Rastgele duraklama ve hız değişimi
+                const randomPause = Math.random() < 0.3 ? Math.random() * 500 : 0; // %30 şansla 0-500ms duraklama
+                const speedFactor = 0.8 + Math.random() * 0.4; // 0.8-1.2 arası hız çarpanı (daha yavaş/hızlı)
+                
+                progress += (targetProgress - progress) * speedFactor * 0.1; // Yumuşak yaklaşma
+                if (progress > 100) progress = 100;
+                
+                // Çubuğu %30 daha sağa uzat (progress 100 olduğunda width: 130%)
+                progressBar.style.width = (progress * 1.3) + '%';
+                
+                if (progress < 100) {
+                    setTimeout(step, 50 + randomPause); // 50ms + rastgele duraklama
+                } else {
+                    // Progress bar'ı genişlet
+                    document.getElementById('loading-progress-bar').classList.add('expand');
+                    // 2 saniye sonra loading screen'i yumuşak gizle
+                    setTimeout(() => {
+                        if (loadingScreen) {
+                            loadingScreen.classList.add('fade-out');
+                            setTimeout(() => {
+                                loadingScreen.style.display = 'none';
+                            }, 500); // Opacity geçişi sonrası gizle
+                        }
+                    }, 3000);
+                }
+            }
+            step();
+        }
+        
+        // Animasyonu başlat
+        animateProgress();
+    });
     // --- YENİ: Global "Kaydediliyor..." overlay'i oluştur ---
     let savingOverlay = document.getElementById('saving-overlay');
     if (!savingOverlay) {
@@ -244,25 +296,37 @@ function initApp() {
         return;
     }
 
-    // Harita oluşturma
+        // Harita oluşturma
     var map;
     try {
         // Cihaz tipine göre zoom seviyesini ayarla
         var isMobile = window.innerWidth <= 768;
         var minZoom = isMobile ? -5 : -3; // Mobilde daha az zoom out
+        var zoomSnap = isMobile ? 0.4 : 0.1;  // Mobilde daha büyük adım (0.4), masaüstünde hassas (0.1)
+        var zoomDelta = isMobile ? 0.4 : 0.1;  // Mobilde küçük adım (0.4), masaüstünde büyük adım (0.1)
         map = L.map('map', {
-            crs: L.CRS.Simple,
-            minZoom: minZoom,
-            maxZoom: 3,
-            zoomSnap: 0.1,    // Küçük kademeli zoom
-            zoomDelta: 0.1,   // Küçük adımlarla zoom
-            maxBoundsViscosity: 1.0
-        });
+    crs: L.CRS.Simple,
+    minZoom: minZoom,
+    maxZoom: 3,
+    zoomSnap: zoomSnap,    // Cihaz bazlı zoom hassasiyeti
+    zoomDelta: zoomDelta,  // Cihaz bazlı zoom adımı
+    maxBoundsViscosity: 1.0,
+    renderer: L.canvas(),  // Canvas renderer ekle
+    zoomControl: false     // --- YENİ: Zoom +/- butonlarını kaldır ---
+});
     } catch (err) {
         console.error('L.map hatası:', err);
         alert('Hata: Leaflet harita oluşturulamadı.');
         return;
     }
+
+    let zoomTimeout;
+map.on('zoomend', function() {
+    clearTimeout(zoomTimeout);
+    zoomTimeout = setTimeout(() => {
+        // Zoom sonrası işlemler (örneğin, marker güncelleme)
+    }, 300);  // 300ms bekle
+});
 
     // SVG yükleme
     var imageUrl = 'plan.webp';
@@ -297,6 +361,21 @@ function initApp() {
     } catch (err) {
         console.error('map.setView hatası:', err);
     }
+
+    // --- YENİ: Preload fonksiyonunu burada tanımla ---
+function preloadZoomLevels() {
+    const isMobile = window.innerWidth <= 768; // Mobil kontrolü
+    const zoomLevels = isMobile ? [3, 2, 1, 0, -1, -2, -3, -4, -5, -6] : [3, 2, 1, 0, -1, -2, -3, -4]; // Mobil için -5 ekle
+    let index = 0;
+    const interval = setInterval(() => {
+        if (index < zoomLevels.length) {
+            map.setZoom(zoomLevels[index]); // Doğrudan zoom değiştir (animasyon yok)
+            index++;
+        } else {
+            clearInterval(interval); // Tüm seviyeler preload edildikten sonra durdur
+        }
+    }, 200); // Kısa aralıkla hızlı preload
+}
 
     // Veri yapıları
     var markersData = [];
@@ -401,6 +480,7 @@ function initApp() {
     function saveClasses() { loadClassesFromDB(); } // Yeni sınıf eklendiğinde veya silindiğinde listeyi yenile
 
     // Sayfa açılışında verileri backend'den yükle
+    preloadZoomLevels();
     loadMarkersFromDB();
     loadClassesFromDB();
     // --- EKLENDİ: Son admin login panelini başlat ---
@@ -1067,18 +1147,19 @@ if (advancedEditBtnMobile) {
                 if (advancedEditClassesPanel) {
                     advancedEditClassesPanel.style.display = 'block';
                     advancedEditClassesPanel.innerHTML = `
-                        <button id="adv-class-back-btn" style="margin-bottom:18px;">&larr; Geri</button>
-                        <div style="background:#f7f7f7;padding:18px 16px 18px 18px;border-radius:12px;max-width:600px;margin:auto;">
-                            <h3>Sınıf Ara</h3>
-                            <input type="text" id="adv-class-search" placeholder="Sınıf adı ara..." style="width:220px;padding:6px 10px;border-radius:7px;border:1px solid #ccc;margin-bottom:12px;">
-                            <div style="margin-bottom:10px;">
-                                <button id="adv-class-select-all">Tümünü Seç</button>
-                                <button id="adv-class-deselect-all">Seçimi Kaldır</button>
-                                <button id="adv-class-delete-selected" style="background:#e53935;color:#fff;">Seçili Sınıfları Sil</button>
-                            </div>
-                            <ul id="adv-class-list" style="max-height:48vh;overflow:auto;padding:0;list-style:none;"></ul>
-                        </div>
-                    `;
+    <button id="adv-class-back-btn" style="margin-bottom:18px;">&larr; Geri</button>
+    <div style="background:#f7f7f7;padding:18px 16px 18px 18px;border-radius:12px;max-width:600px;margin:auto;">
+        <h3 style="text-align: center;font-family: Arial, sans-serif;">Sınıf Ara</h3>
+        <input type="text" id="adv-class-search" placeholder="Sınıf adı ara..." style="width:420px;padding:6px 10px;border-radius:7px;border:1px solid #ccc;margin-bottom:12px;display:block;margin-left:auto;margin-right:auto;">
+            <div style="display:flex; align-items:center; gap:0px; margin-bottom:12px;">
+                 <button id="adv-class-search-btn" style="white-space:nowrap;margin:0;">Ara</button>
+                 <button id="adv-class-select-all" style="white-space:nowrap;margin:0;">Tümünü Seç</button>
+                <button id="adv-class-deselect-all" style="white-space:nowrap;margin:0;">Seçimi Kaldır</button>
+                <button id="adv-class-delete-selected" style="background:#e53935;color:#fff;white-space:nowrap;margin:0;">Seçili Sınıfları Sil</button>
+            </div>
+        <ul id="adv-class-list" style="max-height:48vh;overflow:auto;padding:0;list-style:none;"></ul>
+    </div>
+`;
                     // Geri butonu işlevi
                     var backBtn = document.getElementById('adv-class-back-btn');
                     if (backBtn) backBtn.onclick = function() {
@@ -1098,20 +1179,21 @@ if (advancedEditBtnMobile) {
                             li.style.justifyContent = 'space-between';
                             li.style.padding = '6px 0';
                             li.innerHTML = `
-                                <label style="display:flex;align-items:center;gap:8px;">
-                                    <input type="checkbox" class="adv-class-checkbox" data-idx="${idx}">
-                                    <span style="font-weight:600;">${cls}</span>
-                                </label>
-                                <button class="adv-class-edit-btn" data-idx="${idx}" style="background:#ffc107;color:#222;border-radius:8px;padding:4px 12px;">Düzenle</button>
-                                <button class="adv-class-delete-btn" data-idx="${idx}" style="background:#e53935;color:#fff;border-radius:8px;padding:4px 12px;">Sil</button>
-                            `;
+    <label style="display:flex;align-items:center;gap:8px;">
+        <input type="checkbox" class="adv-class-checkbox" data-idx="${idx}">
+        <span style="font-weight:600;">${cls}</span>
+    </label>
+    <div style="margin-left: auto;">
+        <button class="adv-class-edit-btn" data-idx="${idx}" style="background:#ffc107;color:#222;border-radius:8px;padding:4px 12px;">Düzenle</button>
+    </div>
+`;
                             list.appendChild(li);
                         });
                     }
                     renderClassList();
-                    // Arama işlevi
-                    document.getElementById('adv-class-search').oninput = function() {
-                        const val = this.value.trim().toLowerCase();
+                    // Arama işlevi (oninput kaldırıldı, butonla tetikleniyor)
+                    document.getElementById('adv-class-search-btn').onclick = function() {
+                        const val = document.getElementById('adv-class-search').value.trim().toLowerCase();
                         filteredClasses = classesData.filter(cls => cls.toLowerCase().includes(val));
                         renderClassList();
                     };
@@ -2793,7 +2875,7 @@ function showUnsavedChangesPanel(onConfirm, onCancel) {
             panel.style.fontSize = '13px';
             panel.style.padding = '6px 22px 6px 14px';
             panel.style.borderRadius = '16px';
-            panel.style.zIndex = '15000';
+            panel.style.zIndex = '1000';
             panel.style.pointerEvents = 'none';
             panel.style.userSelect = 'none';
             panel.style.fontWeight = '500';
@@ -2913,4 +2995,6 @@ if (manageClassesBtnMobile) {
         hideMobilePanel();
     });
 }
+
+
 

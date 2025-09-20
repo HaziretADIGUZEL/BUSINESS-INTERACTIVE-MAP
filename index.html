@@ -13,6 +13,51 @@
         <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>         
         <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>         
         <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Afacad&display=swap">
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto&display=swap">
+        <!-- Roboto -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto&display=swap">
+
+<!-- Montserrat -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat&display=swap">
+
+<!-- Lato -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lato&display=swap">
+
+<!-- Open Sans -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Open+Sans&display=swap">
+
+<!-- Raleway -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Raleway&display=swap">
+
+<!-- Nunito -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito&display=swap">
+
+<!-- Poppins -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins&display=swap">
+
+<!-- Oswald -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oswald&display=swap">
+
+<!-- Merriweather -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Merriweather&display=swap">
+
+<!-- Playfair Display -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display&display=swap">
+
+<!-- Ubuntu -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Ubuntu&display=swap">
+
+<!-- Source Sans Pro -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Sans+Pro&display=swap">
+
+<!-- PT Sans -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=PT+Sans&display=swap">
+
+<!-- Dosis -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dosis&display=swap">
+
+<!-- Quicksand -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Quicksand&display=swap">
         <!-- jsQR barkod/QR kütüphanesi -->
         <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
         <style>
@@ -29,15 +74,29 @@
             }
         </style>
     </head>     
-    <body> 
-        <div id="map"></div>         
+    <body>
+        <div id="loading-screen" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #fff; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+        <div id="loading-progress-bar" style="position: absolute; top: 50%; left: -10px; transform: translateY(-50%); width: 0%; height: 4px; background: #000; z-index: 2;"></div>
+                <h2 style="font-size: 40px;font-family: 'Afacad', sans-serif; text-align: center;">
+            <span style="color: #DC143C;">ÇINAR İTFAİYE</span><br>
+            <span style="color: #333;">Oryantasyon Haritasına Hoş Geldiniz!</span>
+        </h2>
+    <p>Sayfa yükleniyor<span class="dot">.</span><span class="dot">.</span><span class="dot">.</span></p>
+</div> 
+        <div id="map">
+        <div id="stars"></div>
+        <div id="stars2"></div>
+        <div id="stars3"></div>
+        <div id="stars4"></div>
+    </div>
+            </div>      
         <div class="search-container"> 
             <input type="text" id="search-input" placeholder="Ara"> 
             <button id="search-button" style="margin-left: 5px;">Ara</button>             
             <ul id="search-suggestions" class="suggestions-list" style="display: none;"></ul>             
         </div>         
         <div class="filter-container"> 
-            <button id="filter-toggle" style="box-shadow: inset 0 0 20px rgba(0,0,0,0.25), 0 0 20px rgba(0,0,0,0.3);;">Sınıflar Filtrele</button>             
+            <button id="filter-toggle" style="box-shadow: inset 0 0 20px rgba(0,0,0,0.25), 0 0 20px rgba(0,0,0,0.3);">Sınıflar Filtrele</button>             
             <div id="filter-dropdown" class="filter-dropdown" style="display: none; margin-top: 50px;"> 
                 <label>
                     <input type="checkbox" id="hide-all-filters"> Hepsini Gizle
