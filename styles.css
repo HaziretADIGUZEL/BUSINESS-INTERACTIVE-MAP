@@ -1352,14 +1352,6 @@ body {
             }
         }
 
-#adv-class-search-btn,
-#adv-class-select-all,
-#adv-class-deselect-all,
-#adv-class-delete-selected {
-    font-size: 18px !important;
-    gap: 0px !important;
-}
-
 /* Gelişmiş düzenleme modalındaki h3'ler için Arial fontu */
 #advanced-edit-modal h3 {
     font-family: 'Montserrat', sans-serif !important;
@@ -1380,3 +1372,156 @@ body {
 #adv-class-back-btn {
     font-size: 20px !important;
 }
+
+/* Gelişmiş sınıf düzenleme paneli stilleri */
+#adv-class-back-btn {
+    margin-bottom: 18px;
+}
+
+#advanced-edit-modal .modal-content div:first-of-type {
+    background: #f7f7f7;
+    padding: 18px 16px 18px 18px;
+    border-radius: 12px;
+    max-width: 600px;
+    margin: auto;
+}
+
+#advanced-edit-modal .modal-content h3 {
+    text-align: center;
+    font-family: Arial, sans-serif;
+}
+
+#adv-class-search {
+    width: 100%;
+    max-width: 420px;
+    padding: 6px 10px;
+    border-radius: 7px;
+    border: 1px solid #ccc;
+    margin-bottom: 12px;
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+#adv-class-buttons {
+    display: grid;  /* Grid modunu koru */
+    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));  /* Genişliği düşür (120px yerine 100px) */
+    gap: 0px !important;  /* Mesafeleri tamamen kaldır */
+    justify-content: center;  /* Butonları ortala */
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+/* Her buton için ayrı kural - ortak özellikleri koruyarak */
+#adv-class-search-btn {
+    background: #A9C936 !important;
+    color: #fff;
+    margin: 0;
+    flex: 1;
+    min-width: 145px !important;
+    font-size: 22px !important;
+    padding: 20px 20px !important;
+    min-height: 36px;
+    max-height: 38px !important;
+    max-width: 10px !important;
+    border: none;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center !important;
+    white-space: nowrap;
+    box-shadow: inset 0 0 10px rgba(255, 255, 255, 0.3);
+}
+
+#adv-class-select-all {
+    background: #2849F7 !important;
+    color: #fff;
+    margin: 0;
+    flex: 1;
+    min-width: 145px !important;
+    font-size: 20px !important;
+    padding: 20px 30px !important;
+    min-height: 36px;
+    max-height: 38px !important;
+    border: none;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center !important;
+    white-space: nowrap;
+    box-shadow: inset 0 0 10px rgba(255, 255, 255, 0.3);
+}
+
+#adv-class-deselect-all {
+    background: #737373 !important;
+    color: #fff;
+    margin: 0;
+    flex: 1;
+    min-width: 145px !important;
+    font-size: 20px !important;
+    padding: 20px 30px !important;
+    min-height: 36px;
+    max-height: 38px !important;
+    border: none;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap;
+    box-shadow: inset 0 0 10px rgba(255, 255, 255, 0.3);
+}
+
+#adv-class-delete-selected {
+    background: #C21919 !important;
+    color: #fff;
+    margin: 0;
+    flex: 1;
+    min-width: 145px !important;
+    font-size: 20px !important;
+    padding: 20px 1px !important;
+    min-height: 36px;
+    min-width: 200px !important;
+    max-height: 38px !important;
+    border: none;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap;
+    box-shadow: inset 0 0 10px rgba(255, 255, 255, 0.3);
+}
+
+/* Sınıf listesi için varsayılan boşlukları tamamen kaldır */
+#adv-class-list {
+    margin: 0 !important;
+    padding: 0 !important;
+    list-style: none !important;
+    line-height: 1 !important;  /* Satır yüksekliğini azalt */
+}
+
+/* Düzenle buton kapsayıcısını sağa yasla (daha spesifik) */
+#adv-class-list li .edit-btn-container {
+    margin-left: auto !important;
+}
+
+
+#adv-class-list {
+    width: 100%;
+    max-width: 600px;
+}
+
+#adv-class-list li label {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.edit-btn-container {
+    margin-left: auto !important;
+    width: fit-content !important;
+    display: flex;
+    align-items: center;
+    padding: 0 !important;
+}
+
