@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kullanım Kılavuzu - Çınar İtfaiye</title>
+    <link rel="stylesheet" href="styles.css"> <!-- Mevcut CSS'yi kullan -->
+    <link rel="stylesheet" href="guide.css"> <!-- Yeni kılavuz CSS -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap"> <!-- Fontlar -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700&display=swap"> <!-- Fontlar -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;700&display=swap"> <!-- Fontlar -->
+    <link rel="icon" href="logo.png" type="image/png"> <!-- Logo -->
+    <script src="guide-content.js"></script> <!-- İçerik dosyası -->
+</head>
+<body>
+    <div id="dark-mode-container">
+        <button id="dark-mode-toggle"></button>
+        <span>Dark Mode</span>
+    </div>
+    <div class="guide-container">
+        <!-- Sol Sidebar: Ağaç Menüsü -->
+        <div class="guide-sidebar">
+            <h3>Kılavuz İçeriği</h3>
+            <ul id="guide-tree" class="tree-menu">
+                <!-- JS ile doldurulacak -->
+            </ul>
+        </div>
+        
+        <!-- Sağ Tarafta İçerik Alanı -->
+        <div class="guide-content">
+            <div class="guide-header">
+                <h1 id="guide-title"><span>Çınar İtfaiye</span> Oryantasyon Haritası Kullanım Kılavuzu</h1>
+                <div class="search-container">
+                    <input type="text" id="guide-search" placeholder="Arama yapın...">
+                    <button id="guide-search-btn">Ara</button>
+                    <div id="search-suggestions" class="search-suggestions"></div>
+                    <div id="search-error" style="display: none; color: red; margin-top: 5px;"></div>
+                </div>
+            </div>
+            <div id="guide-body">
+                <!-- JS ile doldurulacak -->
+            </div>
+        </div>
+    </div>
+    
+    <script src="guide.js"></script> <!-- Kılavuz için JS -->
+</body>
+</html>

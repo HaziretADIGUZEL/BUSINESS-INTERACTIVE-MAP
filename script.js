@@ -248,6 +248,41 @@ function initApp() {
         // Animasyonu başlat
         animateProgress();
     });
+
+    // Kullanım Kılavuzu Butonları Olayları
+document.getElementById('guide-btn-desktop').addEventListener('click', () => {
+    window.location.href = 'guide.html';
+});
+document.getElementById('guide-btn-mobile').addEventListener('click', () => {
+    window.location.href = 'guide.html';
+});
+
+// guide.js (yeni dosya)
+document.addEventListener('DOMContentLoaded', () => {
+    const treeMenu = document.getElementById('guide-tree');
+    const guideBody = document.getElementById('guide-body');
+    const searchInput = document.getElementById('guide-search');
+    
+    // Ağaç menü oluştur
+    guideContent.sections.forEach(section => {
+        const li = document.createElement('li');
+        li.textContent = section.title;
+        li.addEventListener('click', () => loadSection(section));
+        treeMenu.appendChild(li);
+    });
+    
+    // İçerik yükle
+    function loadSection(section) {
+        guideBody.innerHTML = section.content;
+    }
+    
+    // Arama (basit)
+    searchInput.addEventListener('input', (e) => {
+        const query = e.target.value.toLowerCase();
+        // İçerikte arama yap ve highlight et (Fuse.js gibi kütüphane ekle)
+    });
+});
+    
     // --- YENİ: Global "Kaydediliyor..." overlay'i oluştur ---
     let savingOverlay = document.getElementById('saving-overlay');
     if (!savingOverlay) {

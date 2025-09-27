@@ -1,0 +1,455 @@
+/* Genel Reset ve Temel Stiller */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Roboto', Arial, sans-serif;
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    color: #333;
+    line-height: 1.6;
+    overflow-x: hidden;
+}
+
+.guide-container {
+    display: flex;
+    height: 100vh;
+    width: 100vw;
+}
+
+/* Sol Sidebar: Ağaç Menüsü */
+.guide-sidebar {
+    width: 300px;
+    background: #fff;
+    box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+    padding: 20px;
+    overflow-y: auto;
+    transition: width 0.3s ease;
+}
+
+.guide-sidebar h3 {
+    font-size: 1.5rem;
+    margin-bottom: 20px;
+    color: #007bff;
+    border-bottom: 2px solid #007bff;
+    padding-bottom: 10px;
+}
+
+.tree-menu {
+    list-style: none;
+}
+
+.tree-menu li {
+    margin: 5px 0;
+    cursor: pointer;
+    padding: 10px 15px;
+    border-radius: 8px;
+    transition: background 0.3s ease, color 0.3s ease;
+    position: relative;
+}
+
+.tree-menu li:hover {
+    background: #e9ecef;
+    color: #007bff;
+}
+
+.tree-menu li.active {
+    background: #fffacd; /* Sarı background */
+    color: #333; /* Yazı rengi */
+}
+
+.tree-menu li.expanded:not(:has(ul)) {
+    background: #fffacd; /* Sadece en alt dallar için açık sarı background */
+    padding: 12px 15px; /* Yazının etrafında daha fazla boşluk */
+}
+
+.tree-menu ul {
+    margin-left: 20px;
+    display: none;
+}
+
+.tree-menu li.expanded > ul {
+    display: block;
+}
+
+.tree-menu li::before {
+    content: '';
+    transition: transform 0.3s ease; /* Tüm li'ler için transition */
+}
+
+.tree-menu li.has-children::before {
+    content: '';
+    border: 5px solid transparent;
+    border-left: 5px solid #333;
+    position: absolute;
+    left: 0;
+    top: 10px; /* Sabit konum */
+    margin-top: 6px; /* Aşağı kaydır */
+    transform: none;
+}
+
+.tree-menu li.expanded.has-children::before {
+    transform: rotate(90deg);
+}
+
+.tree-menu li:not(.has-children)::before {
+    content: ''; /* En alt dallar için halka kaldır */
+}
+
+/* Sağ İçerik Alanı */
+.guide-content {
+    flex: 1;
+    padding: 20px;
+    overflow-y: auto;
+    background: #fff;
+    margin-left: 10px;
+    border-radius: 10px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+}
+
+.guide-header {
+    position: relative; /* Arama için relative */
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #ddd;
+    text-align: center; /* Title'yi merkeze al */
+}
+
+.guide-title {
+    font-size: 2rem;
+    color: #333;
+    text-align: center; /* Metni merkeze al */
+    font-family: 'Arial Black', sans-serif !important;
+    font-weight: normal !important;
+}
+
+.guide-title span {
+    text-transform: uppercase !important; /* Upper-case */
+    color: red !important; /* Kırmızı */
+    font-family: 'Verdana', sans-serif;
+    font-weight: bold;
+}
+
+.search-container {
+    position: absolute;
+    left: 0; /* Arama alanını sola daya */
+    top: 0;
+}
+
+#guide-search {
+    padding: 10px 15px;
+    width: 250px;
+    border: 1px solid #ddd;
+    border-radius: 25px 0 0 25px;
+    font-size: 1rem;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    outline: none;
+}
+
+#guide-search:focus {
+    border-color: #007bff;
+    box-shadow: 0 0 5px rgba(0,123,255,0.5);
+}
+
+#guide-search-btn {
+    padding: 10px 15px;
+    background: #007bff;
+    color: #fff;
+    border: none;
+    border-radius: 0 25px 25px 0;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: background 0.3s ease;
+}
+
+#guide-search-btn:hover {
+    background: #0056b3;
+}
+
+.search-suggestions {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    display: none;
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 10;
+}
+
+.search-suggestions .suggestion {
+    padding: 10px;
+    cursor: pointer;
+    border-bottom: 1px solid #eee;
+    transition: background 0.3s ease;
+    font-weight: lighter!important;
+    font-size: medium!important;
+}
+
+.search-suggestions .suggestion:hover {
+    background: #e9ecef;
+}
+
+.search-suggestions .suggestion:last-child {
+    border-bottom: none;
+}
+
+#guide-body {
+    font-size: 1.1rem;
+    line-height: 1.8;
+    word-wrap: break-word; /* İçeriği üst div genişliğine sığdır */
+    overflow-wrap: break-word; /* Uzun kelimeleri kır */
+}
+
+#guide-body h2 {
+    color: #007bff;
+    margin-bottom: 15px;
+    font-size: 1.8rem;
+}
+
+#guide-body h3 {
+    color: #555;
+    margin-top: 20px;
+    margin-bottom: 10px;
+    font-size: 1.4rem;
+}
+
+#guide-body p {
+    margin-bottom: 15px;
+}
+
+/* Responsive Tasarım */
+@media (max-width: 768px) {
+    .guide-container {
+        flex-direction: column;
+    }
+
+    .guide-sidebar {
+        width: 100%;
+        height: auto;
+        max-height: 200px;
+        padding: 10px;
+    }
+
+    .guide-sidebar h3 {
+        font-size: 1.2rem;
+    }
+
+    .guide-content {
+        margin-left: 0;
+        margin-top: 10px;
+        padding: 15px;
+    }
+
+    .guide-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    #guide-search {
+        width: 100%;
+        margin-top: 10px;
+    }
+
+    .tree-menu li {
+        padding: 8px 10px;
+    }
+
+    .tree-menu ul {
+        margin-left: 15px;
+    }
+}
+
+/* Ek Efektler */
+.tree-menu li:hover::before {
+    color: #007bff;
+}
+
+.guide-content::-webkit-scrollbar {
+    width: 8px;
+}
+
+.guide-content::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+.guide-content::-webkit-scrollbar-thumb {
+    background: #007bff;
+    border-radius: 4px;
+}
+
+.guide-sidebar::-webkit-scrollbar {
+    width: 6px;
+}
+
+.guide-sidebar::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+.guide-sidebar::-webkit-scrollbar-thumb {
+    background: #007bff;
+    border-radius: 3px;
+}
+
+#night-mode-btn {
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    padding: 10px 15px;
+    background: #007bff;
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: background 0.3s ease;
+    z-index: 1000;
+}
+
+#night-mode-btn:hover {
+    background: #0056b3;
+}
+
+/* Dark mode */
+[native-dark-active] body {
+    background: #292929;
+    color: #dcdcdc;
+}
+
+[native-dark-active] .guide-sidebar {
+    background: #333;
+}
+
+[native-dark-active] .guide-content {
+    background: #333;
+}
+
+[native-dark-active] .tree-menu li:hover {
+    background: #555;
+    color: #fff;
+}
+
+[native-dark-active] .tree-menu li.active {
+    background: #666;
+    color: #fff;
+}
+
+[native-dark-active] .guide-title {
+    color: #fff;
+}
+
+[native-dark-active] .guide-title span {
+    color: #ff0000; /* Kırmızı kal */
+}
+
+[native-dark-active] #guide-search {
+    background: #333;
+    color: #fff;
+    border: 1px solid #555;
+}
+
+[native-dark-active] #guide-search:focus {
+    border-color: #007bff;
+}
+
+[native-dark-active] #guide-search-btn {
+    background: #555;
+    color: #fff;
+}
+
+[native-dark-active] #guide-search-btn:hover {
+    background: #777;
+}
+
+[native-dark-active] .search-suggestions {
+    background: #333;
+    border: 1px solid #555;
+}
+
+[native-dark-active] .search-suggestions .suggestion:hover {
+    background: #555;
+}
+
+[native-dark-active] #guide-body h2 {
+    color: #007bff;
+}
+
+[native-dark-active] #guide-body h3 {
+    color: #ccc;
+}
+
+[native-dark-active] .guide-sidebar h3 {
+    color: #007bff;
+    border-bottom: 2px solid #007bff;
+}
+
+[native-dark-active] #dark-mode-toggle {
+    background: #007bff;
+}
+
+[native-dark-active] #dark-mode-toggle::before {
+    transform: translateX(26px);
+}
+
+#dark-mode-toggle {
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    width: 50px;
+    height: 24px;
+    background: #ccc;
+    border-radius: 24px;
+    cursor: pointer;
+    transition: background 0.3s ease;
+    border: none;
+    outline: none;
+    z-index: 1000;
+}
+
+#dark-mode-toggle::before {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 20px;
+    height: 20px;
+    background: #fff;
+    border-radius: 50%;
+    transition: transform 0.3s ease;
+}
+
+#dark-mode-container {
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    z-index: 1000;
+}
+
+#dark-mode-container span {
+    font-size: 0.8rem;
+    margin-top: 30px; /* Yazıyı aşağıya al */
+    color: #333;
+}
+
+[native-dark-active] #dark-mode-container span {
+    color: #fff;
+}
+
+b {
+    font-weight: bold;
+}
+
+mark {
+    background: #73e973; /* Beyaza yakın açık fosforlu yeşil */
+    color: #000;
+}
+
