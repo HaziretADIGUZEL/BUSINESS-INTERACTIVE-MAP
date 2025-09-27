@@ -921,36 +921,46 @@ if (advancedEditBtnMobile) {
                 if (advancedEditMarkersPanel) {
                     advancedEditMarkersPanel.style.display = 'block';
                     // Panel HTML: filtre üstte, marker listesi altta
-                    advancedEditMarkersPanel.innerHTML = `
+advancedEditMarkersPanel.innerHTML = `
     <button id="adv-marker-back-btn" style="margin-bottom:18px;">&larr; Geri</button>
     <div style="background:#f7f7f7;padding:18px 16px 18px 18px;border-radius:12px;max-width:900px;margin:auto;">
         <h3>Marker Filtrele</h3>
-        <div style="display:flex;flex-wrap:wrap;gap:18px 32px;align-items:flex-end;">
+        <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:center;">
+            <div style="display:flex;align-items:center;gap:25px;justify-content:center;flex-wrap:wrap;">
             <label>Başlık: <input type="text" id="adv-marker-title" style="width:140px;margin-bottom:6px;"></label>
             <label>Açıklama: <input type="text" id="adv-marker-desc" style="width:140px;margin-bottom:6px;"></label>
+            </div>
             <div style="position:relative;min-width:180px;">
-                <label>Sınıf:</label>
-                <div id="adv-marker-class-chips" style="display:flex;flex-wrap:wrap;gap:4px 6px;margin-bottom:4px;"></div>
-                <input type="text" id="adv-marker-class-input" autocomplete="off" placeholder="Sınıf ara/seç..." style="width:140px;padding:4px 8px;border-radius:7px;border:1px solid #ccc;">
-                <div id="adv-marker-class-dropdown" style="display:none;position:absolute;top:48px;left:0;width:140px;max-height:120px;overflow:auto;background:#fff;border:1px solid #ccc;border-radius:7px;z-index:10;"></div>
+            <div style="display:flex;align-items:center;gap:25px;justify-content:center;">
+            <label>Renk: <select id="adv-marker-color" style="width:90px;margin-bottom:6px;"></select></label>
+            <label>Görsel Adedi: <input type="number" id="adv-marker-image-count" min="0" style="width:60px;margin-bottom:6px;"></label>
+            </div>
+            <label style="display: flex; flex-direction: column; align-items: flex-start; gap: 10px; position: relative; margin-bottom: 6px;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    Sınıf:
+                    <input type="text" id="adv-marker-class-input" autocomplete="off" placeholder="Sınıf ara/seç..." style="width:140px;padding:4px 8px;border-radius:7px;border:1px solid #ccc;">
+                </div>
+                <div id="adv-marker-class-chips" style="display:flex;flex-wrap:wrap;gap:4px 6px;justify-content:center;"></div>
+                <div id="adv-marker-class-dropdown" style="display:none;position:absolute;top:100%;left:50%;transform:translateX(-50%);width:140px;max-height:120px;overflow:auto;background:#fff;border:1px solid #ccc;border-radius:7px;z-index:10;"></div>
+            </label>
             </div>
             <label>Barkod Durumu: <select id="adv-marker-barcode-status" style="width:110px;margin-bottom:6px;">
                 <option value="">Hepsi</option>
                 <option value="var">Barkod Var</option>
                 <option value="yok">Barkod Yok</option>
             </select></label>
-            <label>Renk: <select id="adv-marker-color" style="width:90px;margin-bottom:6px;"></select></label>
-            <label>Görsel Adedi: <input type="number" id="adv-marker-image-count" min="0" style="width:60px;margin-bottom:6px;"></label>
-            <button id="adv-marker-filter-btn" style="margin-top:0;">Filtrele</button>
-            <button id="adv-marker-reset-btn" style="margin-top:0;margin-left:8px;">Sıfırla</button>
+        </div>
+        <div style="display:flex;align-items:center; margin-top:8px;margin-left:40px;justify-content:center;flex-wrap:wrap;">
+        <button id="adv-marker-filter-btn" style="margin-top:0;">Filtrele</button>
+        <button id="adv-marker-reset-btn" style="margin-top:0;margin-left:8px;">Sıfırla</button>
         </div>
     </div>
     <div style="flex:2 1 480px;min-width:380px;max-width:900px;background:#f7f7f7;padding:18px 16px 18px 18px;border-radius:12px;margin:24px auto 0 auto;">
         <h3>Markerlar</h3>
-        <div style="margin-bottom:10px; display:flex; gap:4px;">
+        <div style="margin-bottom:10px;flex-wrap:wrap;display:flex; gap:10px;padding-left: 80px;justify-content: center;position:relative; align-items: center;">
             <button id="adv-marker-select-all">Tümünü Seç</button>
             <button id="adv-marker-deselect-all">Seçimi Kaldır</button>
-            <button id="adv-marker-delete-selected" style="background:#e53935;color:#fff;">Seçili Markerları Sil</button>
+            <button id="adv-marker-delete-selected" style="background: rgb(229, 57, 53); color: rgb(255, 255, 255); transition: none; cursor: move; position: relative; left: 6px;" data-selected="true" data-label-id="0">Seçili Markerları Sil</button>
         </div>
         <ul id="adv-marker-list" style="max-height:48vh;overflow:auto;padding:0;list-style:none;"></ul>
     </div>

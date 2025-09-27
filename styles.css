@@ -1525,3 +1525,46 @@ body {
     padding: 0 !important;
 }
 
+/* Belirli Girdi Alanları için Radyus ve Yumuşak Fade Inner Shadow */
+#adv-marker-title,
+#adv-marker-desc,
+#adv-marker-color,
+#adv-marker-image-count,
+#adv-marker-class-input,
+#adv-marker-barcode-status {
+    border-radius: 6px!important;
+    box-shadow: inset 0 0px 10px rgba(0, 0, 0, 0.2)!important;
+    border: 1px solid #f1f1f1!important;
+    height: 30px!important;
+}
+
+.adv-marker-class-input {
+    max-width: 40px !important;
+}
+
+/* === Gelişmiş Marker Düzenleme Paneli Butonları Bölümü === */
+
+/* Tümünü Seç butonu: Tüm markerları seçer */
+#adv-marker-select-all {
+    /* İşlev: Gelişmiş düzenleme panelindeki tüm marker checkbox'larını seçer. */
+    margin-left: 200px!important;
+    padding-left: 30px!important;
+    /* Sol boşluk ekler. */
+}
+
+/* Seçimi Kaldır butonu: Tüm seçimleri kaldırır */
+#adv-marker-deselect-all {
+    /* İşlev: Gelişmiş düzenleme panelindeki tüm marker checkbox'larının seçimini kaldırır. */
+    margin-left: 200px!important;
+    padding-left: 30px!important;
+    /* Sol boşluk ekler. */
+}
+
+/* Seçili Markerları Sil butonu: Seçili markerları siler */
+#adv-marker-delete-selected {
+    /* İşlev: Gelişmiş düzenleme panelinde seçili markerları veritabanından siler ve listeyi günceller. */
+    background: #e53935;
+    color: #fff;
+    padding-left: 30px!important;
+    /* Sol boşluk ekler ve kırmızı arka plan ile silme işlemini vurgular. */
+}
