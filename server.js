@@ -6,6 +6,9 @@ const cors = require('cors');
 const admin = require('firebase-admin');
 const jwt = require('jsonwebtoken');
 
+// --- YENİ: coordinateMapper modülünü import et ---
+const coordinateMapper = require('./coordinateMapper');
+
 // Express'i başlat
 const app = express();
 const upload = multer({ dest: 'uploads/' });
@@ -109,6 +112,73 @@ app.get('/api/last-login', authenticateJWT, async (req, res) => {
 // Çıkış endpoint'i (oturumlar uygulanmadığı için placeholder)
 app.post('/api/logout', (req, res) => {
     res.json({ success: true });
+});
+
+// --- YENİ: GPS koordinatlarını pixel'e çeviren endpoint ---
+app.post('/api/gps-to-pixel', (req, res) => {
+    try {
+        const { lat, lng } = req.body;
+        
+        if (typeof lat !== 'number' || typeof lng !== 'number') {
+            return res.status(400).json({
+                success: false,
+                error: 'Geçersiz koordinat formatı'
+            });
+        }
+        
+        // coordinateMapper.js'i kullan
+        const result = coordinateMapper.gpsToPixel(lat, lng);
+        
+        res.json({
+            success: true,
+            pixel: {
+                x: result.pixelX,
+                y: result.pixelY
+            },
+            distance: result.distance,
+            isValid: result.isValid,
+            matchedPoint: result.matchedPoint || null
+        });
+    } catch (error) {
+        console.error('GPS->Pixel dönüşüm hatası:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Koordinat dönüşümü başarısız'
+        });
+    }
+});
+
+// --- YENİ: Pixel koordinatlarını GPS'e çeviren endpoint ---
+app.post('/api/pixel-to-gps', (req, res) => {
+    try {
+        const { x, y } = req.body;
+        
+        if (typeof x !== 'number' || typeof y !== 'number') {
+            return res.status(400).json({
+                success: false,
+                error: 'Geçersiz pixel formatı'
+            });
+        }
+        
+        // coordinateMapper.js'i kullan
+        const result = coordinateMapper.pixelToGPS(x, y);
+        
+        res.json({
+            success: result.isValid,
+            gps: result.isValid ? {
+                lat: result.lat,
+                lng: result.lng
+            } : null,
+            matchedPoint: result.matchedPoint || null,
+            error: result.error || null
+        });
+    } catch (error) {
+        console.error('Pixel->GPS dönüşüm hatası:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Koordinat dönüşümü başarısız'
+        });
+    }
 });
 
 // Marker endpoint'leri

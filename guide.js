@@ -9,7 +9,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentQuery = ''; // Highlight için
 
     // Başlık ayarla
-    guideTitle.innerHTML = '<span style="font-family: \'Open Sans\', sans-serif; font-weight: normal; display: block; margin-bottom: 0;"><span style="font-family: \'Open Sans\', sans-serif; font-weight: normal; display: block; margin-bottom: 0; color: red; text-transform: uppercase;">Çınar İtfaiye</span> Oryantasyon Haritası Kullanım Kılavuzu</span>';
+    guideTitle.innerHTML = '<span style="font-family: \'Montserrat\', sans-serif; font-weight: normal; display: block; margin-bottom: 0;"><span style="font-family: \'Montserrat\', sans-serif; font-weight: bold;font-size: 3rem; display: block; margin-bottom: 0; color: red; text-transform: uppercase;">Çınar İtfaiye</span> Oryantasyon Haritası Kullanım Kılavuzu</span>';
 
     // Tüm bölümleri topla
     const allSections = [];
