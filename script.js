@@ -455,6 +455,55 @@ map.on('zoomend', function() {
         }
     }
 
+// --- YENİ: GPS koordinatlarının kalibrasyon alanı içinde olup olmadığını kontrol eden fonksiyon ---
+function isLocationInCalibrationArea(lat, lng) {
+    const { lngMin, lngMax, latMin, latMax } = geoToPixelTransform;
+    
+    // Koordinatların sınırlar içinde olup olmadığını kontrol et
+    if (lat >= latMin && lat <= latMax && lng >= lngMin && lng <= lngMax) {
+        return true;
+    }
+    return false;
+}
+
+// --- YENİ: Sınır dışı konum uyarı paneli ---
+function showOutOfBoundsWarning() {
+    let panel = document.getElementById('out-of-bounds-panel');
+    if (!panel) {
+        panel = document.createElement('div');
+        panel.id = 'out-of-bounds-panel';
+        panel.style.position = 'fixed';
+        panel.style.top = '0';
+        panel.style.left = '0';
+        panel.style.width = '100vw';
+        panel.style.height = '100vh';
+        panel.style.background = 'rgba(0,0,0,0.7)';
+        panel.style.zIndex = '100000';
+        panel.style.display = 'flex';
+        panel.style.alignItems = 'center';
+        panel.style.justifyContent = 'center';
+        panel.innerHTML = `
+            <div style="background:#fff;padding:32px 48px;border-radius:18px;max-width:400px;text-align:center;box-shadow:0 2px 16px rgba(0,0,0,0.18);">
+                <div style="font-size:3rem;margin-bottom:16px;">⚠️</div>
+                <h2 style="color:#e67e22;margin-bottom:12px;font-size:1.5rem;">Konum Sınır Dışında</h2>
+                <p style="color:#555;margin-bottom:24px;line-height:1.6;">
+                    Mevcut konumunuz kalibrasyon yapılmış alan dışında kaldığı için konum gösterilemiyor.
+                </p>
+                <button id="out-of-bounds-ok" style="padding:12px 32px;font-size:1.1rem;border-radius:8px;background:#007bff;color:#fff;border:none;cursor:pointer;font-weight:600;">
+                    Tamam
+                </button>
+            </div>
+        `;
+        document.body.appendChild(panel);
+        
+        document.getElementById('out-of-bounds-ok').onclick = function() {
+            panel.style.display = 'none';
+        };
+    } else {
+        panel.style.display = 'flex';
+    }
+}
+
     // Eski local fonksiyonu yedek olarak tut
     function projectLatLngToPixelLocal(lat, lng, transform) {
         const { lngMin, lngMax, latMin, latMax, imgWidth, imgHeight } = transform;
@@ -510,121 +559,131 @@ map.on('zoomend', function() {
         const maxUpdates = 7;
 
         function updateLocation() {
-            if (!locationTrackingActive) return;
-            navigator.geolocation.getCurrentPosition(
-                async position => {
-                    // YENİ: Maksimum hassasiyetle koordinatları al
-                    const { latitude: lat, longitude: lng } = position.coords;
-                    lastKnownLocation = { lat, lng };
-                    
-                    // Konsola tam hassasiyetle yazdır
-                    console.log('Ham GPS Koordinatları:', {
-                        lat: lat.toFixed(14),
-                        lng: lng.toFixed(14),
-                        accuracy: position.coords.accuracy
-                    });
-                    
-                    // ÖNCE: Backend ile dönüşüm yap
-                    let pixelPoint = await projectLatLngToPixelViaBackend(lat, lng);
-                    
-                    // Backend başarısız olursa local hesaplama kullan
-                    if (!pixelPoint) {
-                        console.warn('Backend başarısız, local hesaplamaya geçiliyor...');
-                        pixelPoint = projectLatLngToPixelLocal(lat, lng, geoToPixelTransform);
-                    }
-                    
-                    if (!pixelPoint) {
-                        console.error('Koordinat dönüşümü başarısız:', { lat, lng });
-                        return;
-                    }
-                    
-                    console.log('Mevcut konum:', { 
-                        gps: { lat: lat.toFixed(14), lng: lng.toFixed(14) }, 
-                        pixel: { x: pixelPoint.x.toFixed(2), y: pixelPoint.y.toFixed(2) }
-                    });
-                    
-                    // Leaflet koordinat sistemi için [X, Y] sıralaması
-                    const targetLatLng = L.latLng(pixelPoint.x, pixelPoint.y);
-
-                    if (!currentLocationMarker) {
-                        // Yeni marker oluştur
-                        currentLocationMarker = L.marker(targetLatLng, {
-                            icon: L.divIcon({
-                                className: 'current-location-marker',
-                                iconSize: [24, 24],
-                                iconAnchor: [12, 12],
-                                html: '<div style="background-color: #007bff; width: 24px; height: 24px; border-radius: 50%; border: 3px solid white; box-shadow: 0 0 10px rgba(0,123,255,0.5);"></div>'
-                            }),
-                            interactive: true,
-                            zIndexOffset: 1000
-                        }).addTo(map);
-                        
-                        // Popup'ta tam hassasiyetle göster
-                        currentLocationMarker.bindPopup(
-                            `<strong>Mevcut Konumunuz</strong><br>` +
-                            `Gerçek Dünya: ${lat.toFixed(14)}, ${lng.toFixed(14)}<br>` +
-                            `Pixel: X=${pixelPoint.x.toFixed(2)}, Y=${pixelPoint.y.toFixed(2)}<br>` +
-                            `Hassasiyet: ±${position.coords.accuracy.toFixed(1)}m`,
-                            { autoClose: false, closeOnClick: false, closeButton: true }
-                        );
-                        currentLocationMarker.openPopup();
-                        
-                        currentLocationMarker.on('popupclose', () => {
-                            if (locationTrackingActive && currentLocationMarker) {
-                                setTimeout(() => {
-                                    if (currentLocationMarker) currentLocationMarker.openPopup();
-                                }, 100);
-                            }
-                        });
-                        
-                        map.setView(targetLatLng, 0, { animate: true });
-                    } else {
-                        animateMarkerTo(currentLocationMarker, targetLatLng, 900);
-                        currentLocationMarker.setPopupContent(
-                            `<strong>Mevcut Konumunuz</strong><br>` +
-                            `Gerçek Dünya: ${lat.toFixed(14)}, ${lng.toFixed(14)}<br>` +
-                            `Pixel: X=${pixelPoint.x.toFixed(2)}, Y=${pixelPoint.y.toFixed(2)}<br>` +
-                            `Hassasiyet: ±${position.coords.accuracy.toFixed(1)}m`
-                        );
-                        if (!currentLocationMarker.isPopupOpen()) {
-                            currentLocationMarker.openPopup();
-                        }
-                    }
-                },
-                error => {
-                    let errorMsg = 'Konum alınamadı: ';
-                    if (error.code === error.PERMISSION_DENIED) {
-                        errorMsg = 'Konum izni reddedildi. Lütfen tarayıcı ayarlarından konum iznini aktifleştirin.';
-                    } else if (error.code === error.POSITION_UNAVAILABLE) {
-                        errorMsg = 'Konum bilgisi mevcut değil.';
-                    } else if (error.code === error.TIMEOUT) {
-                        errorMsg = 'Konum talebi zaman aşımına uğradı.';
-                    } else {
-                        errorMsg += error.message;
-                    }
-                    alert(errorMsg);
-                    locationTrackingActive = false;
-                    locationBtn.textContent = 'Konumumu Göster';
-                    if (currentLocationMarker) {
-                        map.removeLayer(currentLocationMarker);
-                        currentLocationMarker = null;
-                    }
-                },
-                { 
-                    enableHighAccuracy: true, 
-                    timeout: 10000, 
-                    maximumAge: 0
+    if (!locationTrackingActive) return;
+    navigator.geolocation.getCurrentPosition(
+        async position => {
+            const { latitude: lat, longitude: lng } = position.coords;
+            lastKnownLocation = { lat, lng };
+            
+            console.log('Ham GPS Koordinatları:', {
+                lat: lat.toFixed(14),
+                lng: lng.toFixed(14),
+                accuracy: position.coords.accuracy
+            });
+            
+            // --- YENİ: Sınır kontrolü yap ---
+            if (!isLocationInCalibrationArea(lat, lng)) {
+                console.warn('Konum kalibrasyon alanı dışında:', { lat, lng });
+                
+                // Marker varsa kaldır
+                if (currentLocationMarker) {
+                    map.removeLayer(currentLocationMarker);
+                    currentLocationMarker = null;
                 }
-            );
-
-            updateCount++;
-            if (updateCount >= maxUpdates) {
+                
+                // Uyarı panelini göster
+                showOutOfBoundsWarning();
+                
+                // Konum takibini durdur
                 locationTrackingActive = false;
                 locationBtn.textContent = 'Konumumu Göster';
+                if (locationTrackingTimeout) clearTimeout(locationTrackingTimeout);
                 if (locationTrackingInterval) clearInterval(locationTrackingInterval);
+                locationTrackingTimeout = null;
                 locationTrackingInterval = null;
+                
+                return; // İşlemi durdur, marker oluşturma veya fly-to yapma
             }
+            
+            // ÖNCE: Backend ile dönüşüm yap
+            let pixelPoint = await projectLatLngToPixelViaBackend(lat, lng);
+            
+            // Backend başarısız olursa local hesaplama kullan
+            if (!pixelPoint) {
+                console.warn('Backend başarısız, local hesaplamaya geçiliyor...');
+                pixelPoint = projectLatLngToPixelLocal(lat, lng, geoToPixelTransform);
+            }
+            
+            if (!pixelPoint) {
+                console.error('Koordinat dönüşümü başarısız:', { lat, lng });
+                return;
+            }
+            
+            console.log('Mevcut konum:', { 
+                gps: { lat: lat.toFixed(14), lng: lng.toFixed(14) }, 
+                pixel: { x: pixelPoint.x.toFixed(2), y: pixelPoint.y.toFixed(2) }
+            });
+            
+            const targetLatLng = L.latLng(pixelPoint.x, pixelPoint.y);
+
+            if (!currentLocationMarker) {
+                // Yeni marker oluştur
+                currentLocationMarker = L.marker(targetLatLng, {
+                    icon: L.divIcon({
+                        className: 'current-location-marker',
+                        iconSize: [24, 24],
+                        iconAnchor: [12, 12],
+                        html: '<div style="background-color: #007bff; width: 24px; height: 24px; border-radius: 50%; border: 3px solid white; box-shadow: 0 0 10px rgba(0,123,255,0.5);"></div>'
+                    }),
+                    interactive: true,
+                    zIndexOffset: 1000
+                }).addTo(map);
+                
+                currentLocationMarker.bindPopup(
+                    `<strong>Mevcut Konumunuz</strong><br>` +
+                    `Gerçek Dünya: ${lat.toFixed(14)}, ${lng.toFixed(14)}<br>` +
+                    `Pixel: X=${pixelPoint.x.toFixed(2)}, Y=${pixelPoint.y.toFixed(2)}<br>` +
+                    `Hassasiyet: ±${position.coords.accuracy.toFixed(1)}m`,
+                    { autoClose: false, closeOnClick: false, closeButton: true }
+                );
+                
+                // --- DEĞİŞİKLİK: Zoom seviyesi 0 yerine -0.5 (daha az zoom) ---
+                map.setView(targetLatLng, -0.5, { animate: true });
+            } else {
+                animateMarkerTo(currentLocationMarker, targetLatLng, 900);
+                currentLocationMarker.setPopupContent(
+                    `<strong>Mevcut Konumunuz</strong><br>` +
+                    `Gerçek Dünya: ${lat.toFixed(14)}, ${lng.toFixed(14)}<br>` +
+                    `Pixel: X=${pixelPoint.x.toFixed(2)}, Y=${pixelPoint.y.toFixed(2)}<br>` +
+                    `Hassasiyet: ±${position.coords.accuracy.toFixed(1)}m`
+                );
+            }
+        },
+        error => {
+            let errorMsg = 'Konum alınamadı: ';
+            if (error.code === error.PERMISSION_DENIED) {
+                errorMsg = 'Konum izni reddedildi. Lütfen tarayıcı ayarlarından konum iznini aktifleştirin.';
+            } else if (error.code === error.POSITION_UNAVAILABLE) {
+                errorMsg = 'Konum bilgisi mevcut değil.';
+            } else if (error.code === error.TIMEOUT) {
+                errorMsg = 'Konum talebi zaman aşımına uğradı.';
+            } else {
+                errorMsg += error.message;
+            }
+            alert(errorMsg);
+            locationTrackingActive = false;
+            locationBtn.textContent = 'Konumumu Göster';
+            if (currentLocationMarker) {
+                map.removeLayer(currentLocationMarker);
+                currentLocationMarker = null;
+            }
+        },
+        { 
+            enableHighAccuracy: true, 
+            timeout: 10000, 
+            maximumAge: 0
         }
+    );
+
+    updateCount++;
+    if (updateCount >= maxUpdates) {
+        locationTrackingActive = false;
+        locationBtn.textContent = 'Konumumu Göster';
+        if (locationTrackingInterval) clearInterval(locationTrackingInterval);
+        locationTrackingInterval = null;
+    }
+}
+
 
         updateLocation();
         locationTrackingInterval = setInterval(updateLocation, 3000);
@@ -636,38 +695,73 @@ map.on('zoomend', function() {
         }, 21000);
     }
 
+    // --- YENİ: Masaüstü için konum butonu ---
     const locationBtn = document.createElement('button');
     locationBtn.id = 'current-location-btn';
-    locationBtn.textContent = 'Konumumu Göster';
+    locationBtn.innerHTML = '📍'; // Lokasyon ikonu
+    locationBtn.title = 'Konumumu Göster';
     locationBtn.style.position = 'absolute';
-    locationBtn.style.top = '60px';
-    locationBtn.style.right = '10px';
+    locationBtn.style.bottom = '160px';
+    locationBtn.style.right = '25px';
     locationBtn.style.zIndex = '1000';
-    locationBtn.style.padding = '10px';
+    locationBtn.style.width = '40px';
+    locationBtn.style.height = '40px';
     locationBtn.style.background = '#007bff';
     locationBtn.style.color = '#fff';
     locationBtn.style.border = 'none';
     locationBtn.style.borderRadius = '5px';
     locationBtn.style.cursor = 'pointer';
+    locationBtn.style.fontSize = '20px';
+    locationBtn.style.display = 'flex';
+    locationBtn.style.alignItems = 'center';
+    locationBtn.style.justifyContent = 'center';
+    locationBtn.style.marginBottom = '10px';
     locationBtn.onclick = showCurrentLocation;
+    
+    // Mobilde gizle
+    function updateLocationBtnVisibility() {
+        if (window.innerWidth <= 768) {
+            locationBtn.style.display = 'none';
+        } else {
+            locationBtn.style.display = 'flex';
+        }
+    }
+    updateLocationBtnVisibility();
+    window.addEventListener('resize', updateLocationBtnVisibility);
     document.body.appendChild(locationBtn);
 
-    const coordinatesBtn = document.createElement('button');
-    coordinatesBtn.id = 'current-coordinates-btn';
-    coordinatesBtn.textContent = 'Koordinatlarımı Göster';
-    coordinatesBtn.style.position = 'absolute';
-    coordinatesBtn.style.top = '110px';
-    coordinatesBtn.style.right = '10px';
-    coordinatesBtn.style.zIndex = '1000';
-    coordinatesBtn.style.padding = '10px';
-    coordinatesBtn.style.background = '#17a2b8';
-    coordinatesBtn.style.color = '#fff';
-    coordinatesBtn.style.border = 'none';
-    coordinatesBtn.style.borderRadius = '5px';
-    coordinatesBtn.style.cursor = 'pointer';
-    coordinatesBtn.onclick = displayCurrentCoordinates;
-    document.body.appendChild(coordinatesBtn);
-
+    // --- YENİ: Mobil panel için konum butonu ---
+    const mobileLocationBtn = document.createElement('button');
+    mobileLocationBtn.id = 'mobile-location-btn';
+    mobileLocationBtn.innerHTML = '📍 Konumumu Göster';
+    mobileLocationBtn.style.width = '100%';
+    mobileLocationBtn.style.padding = '12px';
+    mobileLocationBtn.style.marginTop = '10px';
+    mobileLocationBtn.style.background = '#007bff';
+    mobileLocationBtn.style.color = '#fff';
+    mobileLocationBtn.style.border = 'none';
+    mobileLocationBtn.style.borderRadius = '5px';
+    mobileLocationBtn.style.cursor = 'pointer';
+    mobileLocationBtn.style.fontSize = '16px';
+    mobileLocationBtn.onclick = function() {
+        showCurrentLocation();
+        hideMobilePanel();
+    };
+    
+    // Mobil panele ekle (DOMContentLoaded'dan sonra)
+    window.addEventListener('DOMContentLoaded', function() {
+        const mobilePanel = document.getElementById('mobile-panel');
+        if (mobilePanel) {
+            // Guide butonundan önce ekle
+            const guideBtnMobile = document.getElementById('guide-btn-mobile');
+            if (guideBtnMobile) {
+                mobilePanel.insertBefore(mobileLocationBtn, guideBtnMobile);
+            } else {
+                mobilePanel.appendChild(mobileLocationBtn);
+            }
+        }
+    });
+    
     // --- YENİ: Koordinatları gösteren fonksiyon ---
     function displayCurrentCoordinates() {
         const render = (lat, lng) => {
@@ -707,20 +801,21 @@ map.on('zoomend', function() {
         );
     }
 
+
     // --- YENİ: Preload fonksiyonunu burada tanımla ---
-function preloadZoomLevels() {
-    const isMobile = window.innerWidth <= 768; // Mobil kontrolü
-    const zoomLevels = isMobile ? [3, 2, 1, 0, -1, -2, -3, -4, -5, -6] : [3, 2, 1, 0, -1, -2, -3, -4]; // Mobil için -5 ekle
-    let index = 0;
-    const interval = setInterval(() => {
-        if (index < zoomLevels.length) {
-            map.setZoom(zoomLevels[index]); // Doğrudan zoom değiştir (animasyon yok)
-            index++;
-        } else {
-            clearInterval(interval); // Tüm seviyeler preload edildikten sonra durdur
-        }
-    }, 200); // Kısa aralıkla hızlı preload
-}
+    function preloadZoomLevels() {
+        const isMobile = window.innerWidth <= 768;
+        const zoomLevels = isMobile ? [3, 2, 1, 0, -1, -2, -3, -4, -5, -6] : [3, 2, 1, 0, -1, -2, -3, -4];
+        let index = 0;
+        const interval = setInterval(() => {
+            if (index < zoomLevels.length) {
+                map.setZoom(zoomLevels[index]);
+                index++;
+            } else {
+                clearInterval(interval);
+            }
+        }, 200);
+    }
 
     // Veri yapıları
     var markersData = [];
@@ -731,7 +826,7 @@ function preloadZoomLevels() {
     var highlightedMarkers = [];
     var activeFilters = new Set();
     var inversionActive = false;
-    let selectedColor; // <-- HATA DÜZELTME: selectedColor'ı initApp kapsamına taşı
+    let selectedColor;
 
     // Backend ile marker ve sınıf verileri
     async function loadMarkersFromDB() {
@@ -1569,7 +1664,7 @@ renderClassList();
                     // Toplu silme
                     document.getElementById('adv-class-delete-selected').onclick = async function() {
                         var selected = Array.from(document.querySelectorAll('.adv-class-checkbox:checked')).map(cb => Number(cb.getAttribute('data-idx')));
-                        if (selected.length === 0) { alert('Seçili sınıf yok!'); return; }
+                        if ( selected.length === 0) { alert('Seçili sınıf yok!'); return; }
                         if (!confirm('Seçili sınıfları silmek istediğinize emin misiniz?')) return;
                         for (let idx of selected) {
                             if (filteredClasses[idx]) {
@@ -3212,6 +3307,8 @@ function showUnsavedChangesPanel(onConfirm, onCancel) {
         }
     }, 300);
 
+    
+
     // Admin kullanıcı adını gösteren paneli başlat
     function showAdminUsernamePanel() {
         let username = localStorage.getItem('adminUsername');
@@ -3264,15 +3361,20 @@ function showUnsavedChangesPanel(onConfirm, onCancel) {
     }
     showAdminUsernamePanel();
 }
+
+
+
+// initApp fonksiyonu SONU
 window.addEventListener('DOMContentLoaded', initApp);
 
-// Mobil panel fonksiyonları (initApp DIŞINDA)
+// === GLOBAL KAPSAMDA: Hamburger menü ve mobil panel işlevleri ===
 var hamburgerMenu = document.getElementById('hamburger-menu');
 var mobilePanel = document.getElementById('mobile-panel');
 var adminToggleMobile = document.getElementById('admin-toggle-mobile');
 var closeAdminMobile = document.getElementById('close-admin-mobile');
 var showAdminPanelMobile = document.getElementById('show-admin-panel-mobile');
 var manageClassesBtnMobile = document.getElementById('manage-classes-btn-mobile');
+var desktopManageClassesBtn = document.getElementById('manage-classes-btn');
 
 function isMobile() {
     return window.innerWidth <= 768;
@@ -3290,9 +3392,9 @@ function hideMobilePanel() {
     }
 }
 
-// Hamburger menü olayları
 if (hamburgerMenu && mobilePanel) {
     hamburgerMenu.style.display = isMobile() ? 'block' : 'none';
+
     hideMobilePanel();
     hamburgerMenu.addEventListener('click', function(e) {
         e.stopPropagation();
@@ -3351,5 +3453,25 @@ if (manageClassesBtnMobile) {
     });
 }
 
+if (manageClassesBtnMobile) {
+    manageClassesBtnMobile.addEventListener('click', function() {
+        var desktopManageClassesBtn = document.getElementById('manage-classes-btn');
+        if (desktopManageClassesBtn) desktopManageClassesBtn.click();
+        hideMobilePanel();
+    });
+}
 
+// --- YENİ: Mobil konum butonu event listener'ı (GLOBAL KAPSAMDA) ---
+var mobileLocationBtn = document.getElementById('mobile-location-btn');
+if (mobileLocationBtn) {
+    mobileLocationBtn.addEventListener('click', function() {
+        hideMobilePanel();
+        
+        // Masaüstü konum butonunu tetikle (zaten orada tüm mantık var)
+        var desktopLocationBtn = document.getElementById('current-location-btn');
+        if (desktopLocationBtn) {
+            desktopLocationBtn.click();
+        }
+    });
+}
 
